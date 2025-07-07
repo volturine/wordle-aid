@@ -18,8 +18,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: gitea.kripso-world.com
-          username: ${{ gitea.actor }}
-          password: ${{ secrets.GITEA_TOKEN }}
+          username: ${{ secrets.ACTION_USERNAME }}
+          password: ${{ secrets.ACTION_PASSWORD }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
