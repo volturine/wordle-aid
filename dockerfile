@@ -51,6 +51,6 @@ RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
 WORKDIR /app
 COPY start.sh .
 
-EXPOSE 8000 3000
+EXPOSE 8000 3000 9193
 
 CMD ["sh", "start.sh"]

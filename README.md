@@ -8,9 +8,23 @@
 See each subdirectory for details.
 
 ```bash
-# Build and push backend image
 USER_NAME=kripso
-docker build --platform linux/amd64 -t gitea.kripso-world.com/kripso/wordle_helper:latest .
-docker push gitea.kripso-world.com/kripso/wordle_helper:latest
+# unique uuid
+UUID=$(uuidgen)
+UUID=$(echo "$UUID" | tr '[:upper:]' '[:lower:]')
+# Define the base image name
+IMAGE_NAME=gitea.kripso-world.com/${USER_NAME}/wordle_helper
+# echo ${IMAGE_NAME}
+# echo ${UUID}
+
+# Build the image with the UUID tag
+docker build --platform linux/amd64 -t ${IMAGE_NAME}:${UUID} .
+
+# Tag the same image as 'latest'
+docker tag ${IMAGE_NAME}:${UUID} ${IMAGE_NAME}:latest
+
+# Push both tags
+docker push ${IMAGE_NAME}:${UUID}
+docker push ${IMAGE_NAME}:latest
 
 ```

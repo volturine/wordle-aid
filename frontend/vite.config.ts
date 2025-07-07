@@ -12,7 +12,7 @@ export default {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
 			},
 			manifest: {
-				name: 'Your App Name',
+				name: 'Wordle Helper',
 				short_name: 'App',
 				start_url: '/',
 				display: 'standalone',
@@ -37,6 +37,7 @@ export default {
 		port: 3000,
 		allowedHosts: [
 			'localhost',
+			"unraid.bee-justice.ts.net",
 		],
 	},
 };
