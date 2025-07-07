@@ -1,34 +1,26 @@
-# --- Frontend build stage ---
-FROM node:20-alpine AS frontend-build
+# --- Build stage ---
+FROM node:20-alpine AS build
+
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* frontend/yarn.lock* ./
 COPY frontend/ ./
 RUN npm install && npm run build
 
-# --- Backend build stage ---
-FROM python:3.11-slim AS backend-build
 WORKDIR /backend
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/src/ ./src/
 COPY backend/words_alpha.txt ./
 
 # --- Final stage ---
-FROM python:3.11-slim
+FROM python:3.11-alpine
 WORKDIR /app
 
-# Backend
-COPY --from=backend-build /backend /app/backend
-
-# Frontend
-COPY --from=frontend-build /frontend /app/frontend
+# Copy built frontend and backend
+COPY --from=build /frontend/build /app/frontend
+COPY --from=build /backend /app/backend
 
 # Install process manager
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt && apt-get update && apt-get install -y nodejs npm
-
-# Install frontend production dependencies (if needed)
-WORKDIR /app/frontend
-RUN npm install --omit=dev
+RUN apk add --no-cache nodejs npm && pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Entrypoint script
 WORKDIR /app
