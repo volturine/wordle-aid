@@ -18,7 +18,7 @@ IMAGE_NAME=gitea.kripso-world.com/${USER_NAME}/wordle_helper
 # echo ${UUID}
 
 # Build the image with the UUID tag
-docker build --platform linux/amd64 -t ${IMAGE_NAME}:${UUID} .
+docker build --platform linux/amd64 -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${UUID} .
 
 # Tag the same image as 'latest'
 docker tag ${IMAGE_NAME}:${UUID} ${IMAGE_NAME}:latest
