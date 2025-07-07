@@ -42,7 +42,7 @@ EOF
 
 # Install frontend production dependencies (if needed)
 WORKDIR /app/frontend
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
 
 # Entrypoint script
 WORKDIR /app
