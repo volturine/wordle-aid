@@ -1,9 +1,14 @@
+from pathlib import Path
+
+CURRENT_DIR = Path(__file__).parent
+
+
 class WordleHelper:
     def __init__(self, length: int = 5):
         self._set_dictionary(length=length)
 
     def _set_dictionary(self, length: int = 5) -> set[str]:
-        with open("./words_alpha.txt", "r") as file:
+        with open(f"{CURRENT_DIR.parent}/words_alpha.txt", "r") as file:
             valid_words = set(file.read().split())
 
         self.dictionary = {word for word in valid_words if len(word) == length}

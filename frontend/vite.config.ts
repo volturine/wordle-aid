@@ -34,10 +34,9 @@ export default {
 		})
 	],
 	server: {
-		port: 5173,
+		port: 3000,
 		allowedHosts: [
 			'localhost',
-			'rolands-mac-mini.bee-justice.ts.net',
 		],
 	},
 };
