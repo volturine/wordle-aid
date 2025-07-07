@@ -23,6 +23,9 @@ COPY --from=backend-build /backend /app/backend
 # Frontend
 COPY --from=frontend-build /frontend /app/frontend
 
+# Set PYTHONPATH for backend imports
+ENV PYTHONPATH=/app/backend/src
+
 # Install process manager
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 RUN <<EOF
@@ -48,6 +51,6 @@ RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
 WORKDIR /app
 COPY start.sh .
 
-EXPOSE 9191 3000
+EXPOSE 8000 3000
 
 CMD ["sh", "start.sh"]
