@@ -1,0 +1,29 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.env
+
+# Python
+backend/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+backend/env/
+backend/venv/
+backend/ENV/
+backend/build/
+backend/dist/
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
