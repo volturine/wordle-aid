@@ -1,16 +1,15 @@
 name: Docker Build and Push
-run-name: ${{ gitea.actor }} is building and pushing Docker image
+run-name: ${{ gitea.actor }} is building and pushing Docker image 🐳
 on: [push]
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-
-      # - name: Set up QEMU (for cross-platform emulation)
-      #   uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -22,11 +21,11 @@ jobs:
           username: ${{ secrets.ACTION_USERNAME }}
           password: ${{ secrets.ACTION_PASSWORD }}
 
-      - name: Build and push Docker image (multi-arch)
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platform: linux/amd64
           push: true
           tags: |
             gitea.kripso-world.com/${{ gitea.repository }}:latest
