@@ -53,5 +53,5 @@ jobs:
 
       - name: Deploy
         run: |
-          docker build -t gitea.kripso-world.com/wordle_helper:latest .
-          docker push gitea.kripso-world.com/wordle_helper
+          docker build -t gitea.kripso-world.com/${{ gitea.repository }}:latest .
+          docker push gitea.kripso-world.com/${{ gitea.repository }}
