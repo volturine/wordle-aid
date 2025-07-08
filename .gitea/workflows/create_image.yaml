@@ -3,13 +3,47 @@ run-name: ${{ gitea.actor }} is building and pushing Docker image 🐳
 on: [push]
 
 jobs:
-  build-and-push:
+  # build-and-push:
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: catthehacker/ubuntu:act-latest
+  #   steps:
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v4
+
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+  #       with:
+  #         create: true
+
+  #     - name: Login to Gitea Container Registry
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: gitea.kripso-world.com
+  #         username: ${{ secrets.ACTION_USERNAME }}
+  #         password: ${{ secrets.ACTION_PASSWORD }}
+
+  #     - name: Build and push Docker image
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         context: .
+  #         push: true
+  #         no-cache: true
+  #         platforms: linux/amd64,linux/arm64
+  #         tags: |
+  #           gitea.kripso-world.com/${{ gitea.repository }}:latest
+  #           gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }}
+  build-and-push-2:
     runs-on: ubuntu-latest
-    container:
-      image: catthehacker/ubuntu:act-latest
+    defaults:
+      run:
+        working-directory: /repo
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      - name: Checkout repo
+        run: git pull gitea main
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -23,16 +57,7 @@ jobs:
           username: ${{ secrets.ACTION_USERNAME }}
           password: ${{ secrets.ACTION_PASSWORD }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          no-cache: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            gitea.kripso-world.com/${{ gitea.repository }}:latest
-            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }}
-
-      # - name: Inspect pushed image
-      #   run: docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:latest
+      - name: Deploy
+        run: |
+          docker build -t gitea.kripso-world.com/wordle_helper:latest .
+          docker push gitea.kripso-world.com/wordle_helper
