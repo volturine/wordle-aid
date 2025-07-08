@@ -1,13 +1,13 @@
 # --- Frontend build stage ---
 FROM node:20-alpine AS frontend-build
-WORKDIR /home/wordle_helper/frontend
+WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* frontend/yarn.lock* ./
 COPY frontend/ ./
 RUN npm install && npm run build
 
 # --- Backend build stage ---
 FROM python:3.11-slim AS backend-build
-WORKDIR /home/wordle_helper/backend
+WORKDIR /backend
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/src/ ./src/
@@ -17,12 +17,9 @@ COPY backend/words_alpha.txt ./
 FROM python:3.11-slim
 
 # Create a custom user with UID 1234 and GID 1234
-RUN groupadd -g 1234 customgroup && useradd -m -u 1234 -g customgroup customuser
- 
-# Switch to the custom user
-USER customuser
+RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
 
-RUN mkdir -p /home/wordle_helper && chown 1234:1234 /home/wordle_helper
+RUN mkdir -p /home/wordle_helper && chown -R customuser:appgroup /home/wordle_helper
 
 WORKDIR /home/wordle_helper
 
@@ -59,6 +56,9 @@ RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
 # Entrypoint script
 WORKDIR /home/wordle_helper
 COPY start.sh .
+
+# Switch to the custom user
+USER customuser
 
 EXPOSE 8000 3000 9193
 
