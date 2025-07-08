@@ -4,7 +4,7 @@ RUN groupadd -g 1234 customgroup && useradd -m -u 1234 -g customgroup customuser
 # Switch to the custom user
 USER customuser
 
-RUN mkdir -p /home/wordle_helper && chown 1000:1000 /home/wordle_helper
+RUN mkdir -p /home/wordle_helper && chown 1234:1234 /home/wordle_helper
 
 # --- Frontend build stage ---
 FROM node:20-alpine AS frontend-build
