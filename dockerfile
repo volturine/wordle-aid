@@ -19,7 +19,7 @@ FROM python:3.11-slim
 # Create a custom user with UID 1234 and GID 1234
 RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
 
-RUN mkdir -p /home/wordle_helper && chown -R customuser:appgroup /home/wordle_helper
+RUN mkdir -p /home/wordle_helper
 
 WORKDIR /home/wordle_helper
 
@@ -28,6 +28,12 @@ COPY --from=backend-build /backend /home/wordle_helper/backend
 
 # Frontend
 COPY --from=frontend-build /frontend /home/wordle_helper/frontend
+
+# Set ownership recursively
+RUN chown -R customuser:appgroup /home/wordle_helper
+
+# Optional: Make sure permissions are readable/writable (adjust as needed)
+RUN chmod -R u+rwX,g+rwX /home/wordle_helper
 
 # Set PYTHONPATH for backend imports
 ENV PYTHONPATH=/home/wordle_helper/backend/src
@@ -48,7 +54,6 @@ apt-get autoremove -y
 apt-get autoclean
 EOF
 
-
 # Install frontend production dependencies (if needed)
 WORKDIR /home/wordle_helper/frontend
 RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
@@ -56,6 +61,7 @@ RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
 # Entrypoint script
 WORKDIR /home/wordle_helper
 COPY start.sh .
+RUN chown customuser:appgroup start.sh && chmod +x start.sh
 
 # Switch to the custom user
 USER customuser
