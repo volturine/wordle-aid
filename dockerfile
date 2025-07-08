@@ -1,11 +1,3 @@
-# Create a custom user with UID 1234 and GID 1234
-RUN groupadd -g 1234 customgroup && useradd -m -u 1234 -g customgroup customuser
- 
-# Switch to the custom user
-USER customuser
-
-RUN mkdir -p /home/wordle_helper && chown 1234:1234 /home/wordle_helper
-
 # --- Frontend build stage ---
 FROM node:20-alpine AS frontend-build
 WORKDIR /home/wordle_helper/frontend
@@ -23,19 +15,28 @@ COPY backend/words_alpha.txt ./
 
 # --- Final stage ---
 FROM python:3.11-slim
-WORKDIR /home/wordle_helper/app
+
+# Create a custom user with UID 1234 and GID 1234
+RUN groupadd -g 1234 customgroup && useradd -m -u 1234 -g customgroup customuser
+ 
+# Switch to the custom user
+USER customuser
+
+RUN mkdir -p /home/wordle_helper && chown 1234:1234 /home/wordle_helper
+
+WORKDIR /home/wordle_helper
 
 # Backend
-COPY --from=backend-build /backend /app/backend
+COPY --from=backend-build /backend /home/wordle_helper/backend
 
 # Frontend
-COPY --from=frontend-build /frontend /app/frontend
+COPY --from=frontend-build /frontend /home/wordle_helper/frontend
 
 # Set PYTHONPATH for backend imports
-ENV PYTHONPATH=/app/backend/src
+ENV PYTHONPATH=/home/wordle_helper/backend/src
 
 # Install process manager
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /home/wordle_helper/backend/requirements.txt
 RUN <<EOF
 apt-get update
 apt-get install -y --no-install-recommends \
@@ -52,11 +53,11 @@ EOF
 
 
 # Install frontend production dependencies (if needed)
-WORKDIR /home/wordle_helper/app/frontend
+WORKDIR /home/wordle_helper/frontend
 RUN npm install --omit=dev && npm install @tailwindcss/vite --save-dev
 
 # Entrypoint script
-WORKDIR /home/wordle_helper/app
+WORKDIR /home/wordle_helper
 COPY start.sh .
 
 EXPOSE 8000 3000 9193
