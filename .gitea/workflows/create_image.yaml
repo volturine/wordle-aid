@@ -51,7 +51,17 @@ jobs:
           username: ${{ secrets.ACTION_USERNAME }}
           password: ${{ secrets.ACTION_PASSWORD }}
 
-      - name: Deploy
-        run: |
-          docker build -t gitea.kripso-world.com/${{ gitea.repository }}:latest .
-          docker push gitea.kripso-world.com/${{ gitea.repository }}
+      # - name: Deploy
+      #   run: |
+      #     docker build -t gitea.kripso-world.com/${{ gitea.repository }}:latest .
+      #     docker push gitea.kripso-world.com/${{ gitea.repository }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          no-cache: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            gitea.kripso-world.com/${{ gitea.repository }}:latest
+            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }}
