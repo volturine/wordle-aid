@@ -36,8 +36,9 @@ export default {
 	server: {
 		port: 3000,
 		allowedHosts: [
-			'localhost',
-			"unraid.bee-justice.ts.net",
+			"localhost",
+			"portainer-prod.bee-justice.ts.net",
+			"wordle-aid.com"
 		],
 	},
 };
