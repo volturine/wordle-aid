@@ -113,12 +113,12 @@
 </script>
 
 <div class="container">
-	<h1>Wordle Helper v2</h1>
+	<h1>Welcome</h1>
 	<p class="instructions">
-		Enter letters and click on them to toggle their state:
-		<span class="example incorrect">Gray for incorrect letters,</span>
-		<span class="example wrong-position">Yellow for letters in wrong position,</span>
-		<span class="example correct-position">Green for letters in correct position.</span>
+		Enter words and click on the letters to toggle their state
+		<span class="example incorrect">Gray for incorrect letters</span>
+		<span class="example wrong-position">Yellow for letters in wrong position</span>
+		<span class="example correct-position">Green for letters in correct position</span>
 	</p>
 
 	<div class="word-grid">
