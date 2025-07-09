@@ -48,7 +48,8 @@ class WordleHelper:
             if letters_in_incorrect_position:
                 possible_words = []
                 for word in filtered:
-                    if all((word[pos] != char and char in word) for pos, char in letters_in_incorrect_position.items()):
+                    masked_word = "".join(char if i not in _filter["correct_position"] else "*" for i, char in enumerate(word))
+                    if all((masked_word[pos] != char and char in masked_word) for pos, char in letters_in_incorrect_position.items()):
                         possible_words.append(word)
                 filtered = set(possible_words)
 
@@ -60,15 +61,10 @@ if __name__ == "__main__":
 
     filtered = helper.filter_characters(
         {
-            "robot": {
-                "correct_position": [0, 1],
-                "incorrect_letter": [2, 3],
-                "incorrect_position": [4],
-            },
-            "rotls": {
-                "correct_position": [0, 1],
-                "incorrect_letter": [3, 4],
-                "incorrect_position": [2],
+            "hello": {
+                "correct_position": [2],
+                "incorrect_letter": [1, 2, 4],
+                "incorrect_position": [0, 3],
             },
         },
     )
