@@ -116,9 +116,9 @@
 	<h1>Wordle Helper v2</h1>
 	<p class="instructions">
 		Enter letters and click on them to toggle their state:
-		<span class="example incorrect">Gray</span> for incorrect letters,
-		<span class="example wrong-position">Yellow</span> for letters in wrong position,
-		<span class="example correct-position">Green</span> for letters in correct position.
+		<span class="example incorrect">Gray for incorrect letters,</span>
+		<span class="example wrong-position">Yellow for letters in wrong position,</span>
+		<span class="example correct-position">Green for letters in correct position.</span>
 	</p>
 
 	<div class="word-grid">
@@ -133,16 +133,16 @@
 							data-char={charIdx}
 							value={char.value}
 							class={char.state}
-							oninput={(e) => handleCharInput(rowIdx, charIdx, e)}
-							onkeydown={(e) => handleCharKeydown(rowIdx, charIdx, e)}
-							onclick={() => toggleCharState(rowIdx, charIdx)}
+							on:input={(e) => handleCharInput(rowIdx, charIdx, e)}
+							on:keydown={(e) => handleCharKeydown(rowIdx, charIdx, e)}
+							on:click={() => toggleCharState(rowIdx, charIdx)}
 						/>
 					{/each}
 				</div>
 			</div>
 			<button
 				class="remove-row"
-				onclick={() => removeRow(rowIdx)}
+				on:click={() => removeRow(rowIdx)}
 				title="Remove row"
 				aria-label="Remove row"
 			>
@@ -165,8 +165,8 @@
 	</div>
 
 	<div class="controls">
-		<button onclick={addNewRow} disabled={wordRows.length >= 6} class="add-row">Add Row</button>
-		<button onclick={handleSearch} class="search">Filter Words</button>
+		<button on:click={addNewRow} disabled={wordRows.length >= 6} class="add-row">Add Row</button>
+		<button on:click={handleSearch} class="search">Filter Words</button>
 	</div>
 
 	{#if error}
@@ -215,7 +215,7 @@
 		padding: 2px 8px;
 		border-radius: 4px;
 		margin: 0 4px;
-		display: inline-block;
+		display: block;
 	}
 
 	.word-grid {

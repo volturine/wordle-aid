@@ -13,7 +13,7 @@ export default {
 			},
 			manifest: {
 				name: 'Wordle-Aid',
-				short_name: 'App',
+				short_name: 'Wordle-Aid',
 				start_url: '/',
 				display: 'standalone',
 				background_color: '#ffffff',
@@ -37,7 +37,6 @@ export default {
 		port: 3000,
 		allowedHosts: [
 			"localhost",
-			"portainer-prod.bee-justice.ts.net",
 			"wordle-aid.com"
 		],
 	},
