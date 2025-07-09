@@ -359,7 +359,7 @@
 		width: fit-content;
 	}
 
-	@media (max-width: 600px) {
+	@media (max-width: 400px) {
 		.controls {
 			flex-direction: column;
 			gap: 10px;
@@ -367,7 +367,7 @@
 	}
 
 	button {
-		padding: 12px 24px;
+		padding: 12px 12px;
 		font-size: 1em;
 		cursor: pointer;
 		border: none;
@@ -377,19 +377,19 @@
 	}
 
 	button.add-row {
-		width: 115px;
+		width: 100px;
 		background-color: var(--color-secondary);
 		color: var(--color-tertiary);
 	}
 
 	button.search {
-		width: 115px;
+		width: 100px;
 		background-color: var(--color-correct-position);
 		color: var(--color-tertiary);
 	}
 
 	button.reset {
-		width: 115px;
+		width: 100px;
 		background-color: var(--red);
 		color: var(--color-tertiary);
 	}
