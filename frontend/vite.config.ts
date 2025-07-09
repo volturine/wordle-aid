@@ -12,7 +12,7 @@ export default {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
 			},
 			manifest: {
-				name: 'Wordle Helper',
+				name: 'Wordle-Aid',
 				short_name: 'App',
 				start_url: '/',
 				display: 'standalone',
@@ -20,12 +20,12 @@ export default {
 				theme_color: '#000000',
 				icons: [
 					{
-						src: '/icon-192.png',
+						src: '/favicon-192x192.png',
 						sizes: '192x192',
 						type: 'image/png'
 					},
 					{
-						src: '/icon-512.png',
+						src: '/favicon-512x512.png',
 						sizes: '512x512',
 						type: 'image/png'
 					}

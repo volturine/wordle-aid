@@ -66,6 +66,6 @@ RUN chown customuser:appgroup start.sh && chmod +x start.sh
 # Switch to the custom user
 USER customuser
 
-EXPOSE 8000 3000 9193
+EXPOSE 8000 3000
 
 CMD ["sh", "start.sh"]
