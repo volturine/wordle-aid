@@ -6,7 +6,7 @@ on:
       - "dev*"
 
 jobs:
-  build-and-push-2:
+  build-and-push-dev:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
