@@ -1,10 +1,9 @@
 name: Docker Build and Push
-run-name: ${{ gitea.actor }} is building and pushing Docker image 🐳
 
 on:
   push:
     branches:
-      - master
+      - "dev*"
 
 jobs:
   build-and-push-2:
@@ -33,8 +32,8 @@ jobs:
           no-cache: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            gitea.kripso-world.com/${{ gitea.repository }}:latest
-            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }}
+            gitea.kripso-world.com/${{ gitea.repository }}:dev
+            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.commit }}
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -42,13 +41,13 @@ jobs:
       - name: Inspect pushed image digests
         id: inspect
         run: |
-          LATEST_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:latest --format '{{json .}}' | jq -r '.manifest.digest')
-          SHA_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }} --format '{{json .}}' | jq -r '.manifest.digest')
+          DEV_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:dev --format '{{json .}}' | jq -r '.manifest.digest')
+          SHA_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.commit }} --format '{{json .}}' | jq -r '.manifest.digest')
 
-          echo "Latest digest: $LATEST_DIGEST"
+          echo "Latest digest: $DEV_DIGEST"
           echo "Commit digest: $SHA_DIGEST"
 
-          if [ "$LATEST_DIGEST" != "$SHA_DIGEST" ]; then
+          if [ "$DEV_DIGEST" != "$SHA_DIGEST" ]; then
             echo "❌ ERROR: latest does not match the commit digest"
             exit 1
           else
