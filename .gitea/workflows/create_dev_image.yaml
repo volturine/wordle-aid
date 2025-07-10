@@ -34,7 +34,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             gitea.kripso-world.com/${{ gitea.repository }}:dev
-            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.commit }}
+            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }}
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -43,14 +43,14 @@ jobs:
         id: inspect
         run: |
           DEV_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:dev --format '{{json .}}' | jq -r '.manifest.digest')
-          COMMIT_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.commit }} --format '{{json .}}' | jq -r '.manifest.digest')
+          SHA_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }} --format '{{json .}}' | jq -r '.manifest.digest')
 
           echo "Latest digest: $DEV_DIGEST"
-          echo "Commit digest: $COMMIT_DIGEST"
+          echo "sha digest: $SHA_DIGEST"
 
-          if [ "$DEV_DIGEST" != "$COMMIT_DIGEST" ]; then
-            echo "❌ ERROR: latest does not match the commit digest"
+          if [ "$DEV_DIGEST" != "$SHA_DIGEST" ]; then
+            echo "❌ ERROR: latest does not match the sha digest"
             exit 1
           else
-            echo "✅ latest tag matches the commit image"
+            echo "✅ latest tag matches the sha image"
           fi
