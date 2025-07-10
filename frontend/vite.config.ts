@@ -58,7 +58,8 @@ export default {
 		port: 3000,
 		allowedHosts: [
 			"localhost",
-			"wordle-aid.com"
+			"wordle-aid.com",
+			"dev.wordle-aid.com"
 		],
 	},
 };
