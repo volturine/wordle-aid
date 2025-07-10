@@ -42,12 +42,12 @@ jobs:
         id: inspect
         run: |
           DEV_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:dev --format '{{json .}}' | jq -r '.manifest.digest')
-          SHA_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.commit }} --format '{{json .}}' | jq -r '.manifest.digest')
+          COMMIT_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.commit }} --format '{{json .}}' | jq -r '.manifest.digest')
 
           echo "Latest digest: $DEV_DIGEST"
-          echo "Commit digest: $SHA_DIGEST"
+          echo "Commit digest: $COMMIT_DIGEST"
 
-          if [ "$DEV_DIGEST" != "$SHA_DIGEST" ]; then
+          if [ "$DEV_DIGEST" != "$COMMIT_DIGEST" ]; then
             echo "❌ ERROR: latest does not match the commit digest"
             exit 1
           else
