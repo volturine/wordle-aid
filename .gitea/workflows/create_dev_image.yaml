@@ -1,9 +1,10 @@
-name: Docker Build and Push
+name: Docker Build and Push Dev
 
 on:
   push:
     branches:
-      - "dev*"
+      - dev*
+      - dev/**
 
 jobs:
   build-and-push-dev:
