@@ -3,9 +3,29 @@
 
 <head>
 	<meta charset="utf-8" />
+
+	<!-- Essential Android PWA Meta Tags -->
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="theme-color" content="#6aaa64" />
 	<link rel="icon" href="%sveltekit.assets%/favicon.png" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<link rel="manifest" href="/manifest.webmanifest" />
+
+	<!-- Optional Android Enhancements -->
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="screen-orientation" content="portrait" />
+	<meta name="application-name" content="Wordle Aid" />
+	<meta name="msapplication-TileColor" content="#6aaa64" />
+	<meta name="msapplication-TileImage" content="/favicon-144x144.png" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#6aaa64" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#538d4e" />
+
+	<!-- Apple iOS Meta Tags -->
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+	<meta name="apple-mobile-web-app-title" content="Wordle Aid" />
+	<meta name="apple-touch-fullscreen" content="yes" />
+
+	<!-- Apple Touch Icons -->
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
 	<link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
@@ -16,9 +36,30 @@
 	<link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
 	<link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
 
-	<meta name="apple-mobile-web-app-capable" content="yes">
-	<meta name="apple-mobile-web-app-status-bar-style" content="default">
-	<meta name="apple-mobile-web-app-title" content="Wordle-Aid">
+	<!-- SEO and Social Media Meta Tags -->
+	<meta name="description"
+		content="Get hints and for your daily Wordle puzzle. Your helpful Wordle assistant with word definitions and suggestions." />
+	<meta name="keywords" content="wordle, wordle helper, word game, puzzle, hints, daily wordle" />
+	<meta name="author" content="Wordle Aid" />
+	<meta name="robots" content="index, follow" />
+
+	<!-- Open Graph Meta Tags -->
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content="Wordle Aid - Your Daily Wordle Helper" />
+	<meta property="og:description"
+		content="Get hints and for your daily Wordle puzzle. Your helpful Wordle assistant with word definitions and suggestions." />
+	<meta property="og:url" content="https://wordle-aid.com" />
+	<meta property="og:image" content="%sveltekit.assets%/og-image.png" />
+	<meta property="og:site_name" content="Wordle Aid" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta property="og:image:type" content="image/png" />
+
+	<!-- Additional Favicons -->
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+	<link rel="shortcut icon" href="/favicon.ico" />
+
 	%sveltekit.head%
 </head>
 

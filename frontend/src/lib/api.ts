@@ -1,5 +1,5 @@
-import type { WordRow, FilterSpec } from './types';
-import { CharacterState } from './types';
+import type { WordRow, DictionaryResponse, FilterSpec } from './types';
+import { CharacterState } from './interfaces';
 import { API_BASE } from './config';
 
 function convertWordRowToFilterSpec(rows: WordRow[]): FilterSpec {
@@ -49,4 +49,67 @@ export async function filterWords(rows: WordRow[]): Promise<string[]> {
     }
 
     return res.json();
+}
+
+export async function getWordDefinition(word: string): Promise<DictionaryResponse> {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+
+    if (!res.ok) {
+        throw new Error('Failed to fetch word definition');
+    }
+
+    return res.json();
+    // // mock for dev
+    // const mockResponse = [
+    //     {
+    //         "word": "hello",
+    //         "phonetic": "hə'ləʊ",
+    //         "phonetics": [
+    //             {
+    //                 "text": "hə'ləʊ",
+    //                 "audio": "//ssl.gstatic.com/dictionary/static/sounds/20200429/hello--_gb_1.mp3"
+    //             },
+    //             {
+    //                 "text": "hɛ'ləʊ"
+    //             }
+    //         ],
+    //         "origin": "early 19th century: variant of earlier hollo ; related to holla.",
+    //         "meanings": [
+    //             {
+    //                 "partOfSpeech": "exclamation",
+    //                 "definitions": [
+    //                     {
+    //                         "definition": "used as a greeting or to begin a phone conversation.",
+    //                         "example": "hello there, Katie!",
+    //                         "synonyms": [],
+    //                         "antonyms": []
+    //                     }
+    //                 ]
+    //             },
+    //             {
+    //                 "partOfSpeech": "noun",
+    //                 "definitions": [
+    //                     {
+    //                         "definition": "an utterance of hello; a greeting.",
+    //                         "example": "she was getting polite nods and hellos from people",
+    //                         "synonyms": [],
+    //                         "antonyms": []
+    //                     }
+    //                 ]
+    //             },
+    //             {
+    //                 "partOfSpeech": "verb",
+    //                 "definitions": [
+    //                     {
+    //                         "definition": "say or shout hello.",
+    //                         "example": "I pressed the phone button and helloed",
+    //                         "synonyms": [],
+    //                         "antonyms": []
+    //                     }
+    //                 ]
+    //             }
+    //         ]
+    //     }
+    // ];
+    // return mockResponse as unknown as DictionaryResponse;
 }

@@ -1,16 +1,8 @@
-export enum CharacterState {
-    INCORRECT = 'incorrect',
-    CORRECT_POSITION = 'correct-position',
-    WRONG_POSITION = 'wrong-position'
-}
-
-export interface CharacterInfo {
-    value: string;
-    state: CharacterState;
-}
+//
+import type { CharacterInfo, DictionaryEntry } from './interfaces';
 
 export type WordRow = CharacterInfo[];
-
+export type DictionaryResponse = DictionaryEntry[];
 export interface FilterSpec {
     [word: string]: {
         correct_position: number[];
