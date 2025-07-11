@@ -206,7 +206,7 @@
 		position: relative;
 		min-width: 200px;
 		max-width: 400px;
-		max-height: 70vh;
+		max-height: 50vh;
 		overflow-y: auto;
 	}
 
