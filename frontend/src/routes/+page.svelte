@@ -259,10 +259,6 @@
 		--color-error: var(--red);
 	}
 
-	.main-content {
-		flex: 1;
-	}
-
 	.container {
 		max-width: 800px;
 		margin: 0 auto;
