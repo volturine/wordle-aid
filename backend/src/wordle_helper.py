@@ -1,26 +1,54 @@
 from pathlib import Path
 from functools import lru_cache
+import sqlite3
+import logging
 
 CURRENT_DIR = Path(__file__).parent
+DATABASE_PATH = CURRENT_DIR.parent / "words.db"
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class WordleHelper:
     def __init__(self, length: int = 5):
+        logger.info(f"Initializing WordleHelper for {length}-letter words")
+        self.length = length
         self._set_dictionary(length=length)
 
     def _set_dictionary(self, length: int = 5) -> None:
-        with open(f"{CURRENT_DIR.parent}/words_alpha.txt", "r") as file:
-            valid_words = set(file.read().split())
+        logger.info(f"Loading dictionary for {length}-letter words from SQLite database")
 
-        self.dictionary = {word for word in valid_words if len(word) == length}
+        # Check if database exists
+        if not DATABASE_PATH.exists():
+            logger.error(f"Database not found at {DATABASE_PATH}. Please run migrate_to_sqlite.py first.")
+            raise FileNotFoundError(f"Database not found at {DATABASE_PATH}")
 
-        # Process the dictionary to create dictionary of characters where for each character there will be up to length lists of words
-        self.processed_dictionary = {}
-        for word in self.dictionary:
-            for pos, char in enumerate(word):
-                if char not in self.processed_dictionary:
-                    self.processed_dictionary[char] = [set(), set(), set(), set(), set()]
-                self.processed_dictionary[char][pos].add(word)
+        # Load words from SQLite database
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+
+        try:
+            # Get words of specified length
+            cursor.execute(f"SELECT word FROM words WHERE length = {length}")
+            words = [row[0] for row in cursor.fetchall()]
+
+            self.dictionary = set(words)
+            logger.info(f"Loaded {len(self.dictionary)} words of length {length}")
+
+            # Process the dictionary to create dictionary of characters where for each character there will be up to length lists of words
+            self.processed_dictionary = {}
+            for word in self.dictionary:
+                for pos, char in enumerate(word):
+                    if char not in self.processed_dictionary:
+                        self.processed_dictionary[char] = [set() for _ in range(length)]
+                    self.processed_dictionary[char][pos].add(word)
+
+        except sqlite3.Error as e:
+            logger.error(f"Database error while loading dictionary: {e}")
+            raise
+        finally:
+            conn.close()
 
     @lru_cache(maxsize=128)
     def _filter_characters(self, word, incorrect_position: tuple[int], correct_position: tuple[int], incorrect_letter: tuple[int]) -> set[str]:
