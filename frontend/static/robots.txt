@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://wordle-aid.com/sitemap.xml
+
+# Disallow development/build files
+Disallow: /.svelte-kit/
+Disallow: /node_modules/
+Disallow: /_app/immutable/
+
+# Allow specific resources
+Allow: /favicon.ico
+Allow: /browserconfig.xml
+Allow: /icons/
+Allow: /apple-touch-icon*.png

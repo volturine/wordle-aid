@@ -1,5 +1,5 @@
-import type { WordRow, FilterSpec } from './types';
-import { CharacterState } from './types';
+import type { WordRow, DictionaryResponse, FilterSpec } from './types';
+import { CharacterState } from './interfaces';
 import { API_BASE } from './config';
 
 function convertWordRowToFilterSpec(rows: WordRow[]): FilterSpec {
@@ -46,6 +46,16 @@ export async function filterWords(rows: WordRow[]): Promise<string[]> {
 
     if (!res.ok) {
         throw new Error('Failed to filter words');
+    }
+
+    return res.json();
+}
+
+export async function getWordDefinition(word: string): Promise<DictionaryResponse> {
+    const res = await fetch(`${API_BASE}/word-definition/${word}`);
+
+    if (!res.ok) {
+        throw new Error('Failed to fetch word definition');
     }
 
     return res.json();

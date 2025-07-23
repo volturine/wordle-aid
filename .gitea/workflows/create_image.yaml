@@ -7,7 +7,7 @@ on:
       - master
 
 jobs:
-  build-and-push-2:
+  build-and-push-master:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code

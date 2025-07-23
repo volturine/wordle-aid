@@ -11,7 +11,7 @@ WORKDIR /backend
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/src/ ./src/
-COPY backend/words_alpha.txt ./
+COPY backend/words.db ./
 
 # --- Final stage ---
 FROM python:3.11-slim

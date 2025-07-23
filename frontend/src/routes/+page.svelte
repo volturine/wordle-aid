@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { filterWords } from '$lib/api';
-	import { handleSingleCharInput } from '$lib/utils';
-	import type { WordRow } from '$lib/types';
-	import { CharacterState } from '$lib/types';
-	import { onMount } from 'svelte';
+	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
 	import { XIcon } from 'svelte-feather-icons';
+	import { onMount } from 'svelte';
+
+	import type { WordRow } from '$lib/types';
+	import { CharacterState } from '$lib/interfaces';
+	import { filterWords } from '$lib/api';
 
 	// State management
 	let wordRows = $state<WordRow[]>([
@@ -15,6 +16,10 @@
 	let result = $state<string[]>([]);
 	let error = $state('');
 	let loading = $state(false);
+
+	let selectedWord = $state('');
+	let bubblePos = $state({ top: 0, bottom: 0, left: 0 });
+	let overlayPosition = $state<'top' | 'bottom'>('bottom');
 
 	// Local storage keys
 	const WORD_ROWS_KEY = 'wordle-helper-wordRows';
@@ -41,6 +46,10 @@
 	$effect(() => {
 		localStorage.setItem(RESULT_KEY, JSON.stringify(result));
 	});
+
+	function closeOverlay() {
+		selectedWord = '';
+	}
 
 	function handleCharInput(rowIdx: number, charIdx: number, event: Event) {
 		const input = event.target as HTMLInputElement;
@@ -77,6 +86,7 @@
 			}
 		}
 	}
+
 	function toggleCharState(rowIdx: number, charIdx: number) {
 		if (!wordRows[rowIdx][charIdx].value) return; // Don't toggle empty cells
 		const states = Object.values(CharacterState);
@@ -100,12 +110,29 @@
 			wordRows = wordRows.filter((_, idx) => idx !== rowIdx);
 		}
 	}
+
 	function reset() {
 		wordRows = Array(1)
 			.fill('')
 			.map(() => Array(5).fill({ value: '', state: 'incorrect' }));
 		result = [];
 		error = '';
+	}
+
+	function handleSingleCharInput(value: string): string {
+		return value.slice(0, 1);
+	}
+
+	function showOverlay(word: string, event: MouseEvent) {
+		selectedWord = word;
+		const target = event.target as HTMLElement;
+		const rect = target.getBoundingClientRect();
+		bubblePos = {
+			top: rect.top,
+			bottom: rect.bottom,
+			left: window.innerWidth < 1200 ? window.innerWidth / 2 : rect.left - window.scrollX
+		};
+		overlayPosition = rect.top < window.innerHeight / 2 ? 'bottom' : 'top';
 	}
 	async function handleSearch() {
 		try {
@@ -171,20 +198,26 @@
 		{#if error}
 			<div class="error">{error}</div>
 		{/if}
-
-		{#if loading}
-			<div class="loading">Loading...</div>
-		{:else if result.length}
-			<div class="results">
-				<h2>Found {result.length} words:</h2>
-				<div class="word-list">
-					{#each result as word}
-						<span class="word">{word}</span>
-					{/each}
-				</div>
-			</div>
-		{/if}
 	</main>
+	{#if loading}
+		<div class="loading">Loading...</div>
+	{:else if result.length}
+		<div class="results">
+			<h2>Found {result.length} words:</h2>
+			<div class="word-list">
+				{#each result as word}
+					<button class="word" onclick={(e) => showOverlay(word, e)}>{word}</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+	<WordDefinitionOverlay
+		{selectedWord}
+		{bubblePos}
+		onClose={closeOverlay}
+		position={overlayPosition}
+	/>
+
 	<footer class="footer">
 		<p>
 			This website is an independent tool designed to assist users in solving word puzzles and is
@@ -224,10 +257,6 @@
 
 		--color-error-background: var(--white);
 		--color-error: var(--red);
-	}
-
-	.main-content {
-		flex: 1;
 	}
 
 	.container {
