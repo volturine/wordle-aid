@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 name: Docker Build and Push Dev
-=======
-name: Docker Build and Push
->>>>>>> dev/word-menu
 
 on:
   push:
