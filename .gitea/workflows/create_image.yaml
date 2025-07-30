@@ -18,9 +18,6 @@ jobs:
         with:
           create: true
 
-      - name: Docker logout
-        run: docker logout gitea.kripso-world.com
-
       - name: Login to Gitea Container Registry
         uses: docker/login-action@v3
         with:
