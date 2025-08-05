@@ -1,6 +1,6 @@
 <script lang="ts">
 	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
-	import { XIcon } from 'svelte-feather-icons';
+	import { X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
 	import type { WordRow } from '$lib/types';
@@ -166,7 +166,7 @@
 						title="Remove row"
 						aria-label="Remove row"
 					>
-						<XIcon />
+						<X />
 					</button>
 					<div class="word-row-content">
 						{#each row as char, charIdx}

@@ -1,3 +1,3 @@
-import { env } from '$env/dynamic/public';
+import { PUBLIC_API_BASE } from '$env/static/public';
 
-export const API_BASE = env.PUBLIC_API_BASE || 'http://localhost:8000';
+export const API_BASE = PUBLIC_API_BASE;
