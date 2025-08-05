@@ -1,6 +1,6 @@
 <script lang="ts">
 	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
-	import { XIcon } from 'svelte-feather-icons';
+	import { X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
 	import type { WordRow } from '$lib/types';
@@ -166,7 +166,7 @@
 						title="Remove row"
 						aria-label="Remove row"
 					>
-						<XIcon />
+						<X />
 					</button>
 					<div class="word-row-content">
 						{#each row as char, charIdx}
@@ -385,13 +385,13 @@
 		gap: 16px;
 		justify-content: center;
 		margin: 24px auto;
-		width: fit-content;
+		/* width: fit-content; */
 	}
 
-	@media (max-width: 400px) {
-		.controls {
-			flex-direction: column;
-			gap: 10px;
+	@media (max-width: 480px) {
+		input {
+			width: clamp(35px, 12vw, 54px);
+			height: clamp(35px, 12vw, 54px);
 		}
 	}
 
