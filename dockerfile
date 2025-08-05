@@ -20,6 +20,7 @@ WORKDIR /home/wordle_helper/backend
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 COPY backend/ ./
+RUN uv init --bare
 RUN uv pip install .
 
 # Frontend
@@ -48,6 +49,7 @@ EOF
 
 # Entrypoint script
 WORKDIR /home/wordle_helper
+RUN source ./backend/.venv/bin/activate
 COPY start.sh .
 RUN chown customuser:appgroup start.sh && chmod +x start.sh
 
