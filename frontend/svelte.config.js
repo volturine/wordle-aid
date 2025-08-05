@@ -14,6 +14,10 @@ export default {
 		}),
 		files: {
 			assets: 'static'
+		},
+		paths: {
+			base: '', // Ensure base path is empty for proper asset resolution
+			assets: ''
 		}
 	}
 };

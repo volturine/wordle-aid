@@ -5,11 +5,9 @@ COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 COPY . ./
 RUN npm install && npm run build
 
-FROM node:20-alpine AS prod
-WORKDIR /app
-COPY --from=build /app/build ./build
-COPY --from=build /app/package.json ./
-RUN npm install --omit=dev
-EXPOSE 3000
-ENV NODE_ENV=production
-CMD ["node", "build"]
+# Use nginx to serve static files
+FROM nginx:alpine AS prod
+COPY --from=build /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

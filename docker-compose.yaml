@@ -5,7 +5,7 @@ services:
     privileged: false
     user: 1234:1234
     ports:
-      - 9192:3000
+      - 9192:80
       - 9193:8000
     environment:
       - NODE_ENV=production
