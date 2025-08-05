@@ -49,7 +49,6 @@ EOF
 
 # Entrypoint script
 WORKDIR /home/wordle_helper
-RUN source ./backend/.venv/bin/activate
 COPY start.sh .
 RUN chown customuser:appgroup start.sh && chmod +x start.sh
 
