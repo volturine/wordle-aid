@@ -55,8 +55,9 @@ export default {
 		})
 	],
 	server: {
-		port: 3000,
+		port: 13465,
 		allowedHosts: [
+			"portainer-prod.bee-justice.ts.net",
 			"localhost",
 			"wordle-aid.com",
 			"dev.wordle-aid.com"
