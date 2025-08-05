@@ -385,13 +385,13 @@
 		gap: 16px;
 		justify-content: center;
 		margin: 24px auto;
-		width: fit-content;
+		/* width: fit-content; */
 	}
 
-	@media (max-width: 400px) {
-		.controls {
-			flex-direction: column;
-			gap: 10px;
+	@media (max-width: 480px) {
+		input {
+			width: clamp(35px, 12vw, 54px);
+			height: clamp(35px, 12vw, 54px);
 		}
 	}
 
