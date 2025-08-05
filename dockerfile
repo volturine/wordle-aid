@@ -20,7 +20,7 @@ WORKDIR /home/wordle_helper/backend
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 COPY backend/ ./
-RUN uv init --bare
+RUN uv venv
 RUN uv pip install .
 
 # Frontend
