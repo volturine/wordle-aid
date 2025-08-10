@@ -12,6 +12,7 @@
 		"moduleResolution": "bundler",
 		"module": "esnext",
 		"target": "es5",
+		"outDir": "./dist",
 		"lib": [
 			"dom",
 			"dom.iterable",

@@ -1,11 +1,5 @@
-# --- Frontend build stage ---
-FROM node:20-alpine AS frontend-build
-WORKDIR /frontend
-COPY frontend/ ./
-RUN npm install
-
 # --- Backend build stage ---
-FROM python:3.11-slim AS backend-build
+FROM python:3.11-slim
 
 # Create a custom user with UID 1234 and GID 1234
 RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
@@ -14,23 +8,10 @@ RUN mkdir -p /home/wordle_helper
 RUN mkdir -p /home/wordle_helper/frontend
 RUN mkdir -p /home/wordle_helper/backend
 
+# backend
 WORKDIR /home/wordle_helper/backend
-
-# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
-
 COPY backend/ ./
-RUN uv venv
-RUN uv pip install .
-
-# Frontend
-COPY --from=frontend-build /frontend /home/wordle_helper/frontend
-
-# Set ownership recursively
-RUN chown -R customuser:appgroup /home/wordle_helper
-
-# Optional: Make sure permissions are readable/writable (adjust as needed)
-RUN chmod -R u+rwX,g+rwX /home/wordle_helper
 
 # Install process manager
 RUN <<EOF
@@ -47,12 +28,20 @@ apt-get autoremove -y
 apt-get autoclean
 EOF
 
+
+# Frontend
+WORKDIR /home/wordle_helper/frontend
+COPY frontend/ ./
+
 # Entrypoint script
 WORKDIR /home/wordle_helper
 COPY start.sh .
-RUN chown customuser:appgroup start.sh && chmod +x start.sh
 
-# Switch to the custom user
+# Fix ownership and permissions for all files
+RUN chown -R customuser:appgroup /home/wordle_helper
+RUN chmod -R u+rwX,g+rwX /home/wordle_helper
+RUN chmod +x start.sh
+
 USER customuser
 
 EXPOSE 8000 3000

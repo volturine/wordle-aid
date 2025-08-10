@@ -1,5 +1,9 @@
 #!/bin/sh
 # Start backend
-backend/.venv/bin/uvicorn backend.src.main:app --host 0.0.0.0 --port 8000 --log-level debug &
-# Start frontend (Vite preview server as before)
-cd frontend && npm run preview -- --host 0.0.0.0 --port 3000
+cd backend && uv run ./src/main.py &
+
+# Start frontend (Vite dev server)
+cd frontend && \
+npm install && \
+npm run build && \
+npm run dev -- --host 0.0.0.0 --port 3000
