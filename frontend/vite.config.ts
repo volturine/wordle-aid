@@ -1,10 +1,10 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default {
 	plugins: [
 		sveltekit(),
-		SvelteKitPWA({
+		VitePWA({
 			registerType: 'autoUpdate',
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,xml}']
