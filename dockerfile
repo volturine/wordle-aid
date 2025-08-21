@@ -2,6 +2,7 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /frontend
 COPY frontend/ ./
+COPY frontend/.env ./
 RUN npm install && npm run build
 
 # --- Backend build stage ---
@@ -18,7 +19,6 @@ WORKDIR /home/wordle_helper
 
 # Frontend
 COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend
-COPY --from=frontend-build /frontend/.env /home/wordle_helper/frontend/.env
 
 # backend
 WORKDIR /home/wordle_helper/backend
