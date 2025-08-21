@@ -2,6 +2,7 @@
 	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
 	import { X, FilePenLine, Grid2x2Check } from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
 
 	import type { WordRow } from '$lib/types';
 	import { CharacterState } from '$lib/interfaces';
@@ -171,131 +172,186 @@
 	}
 </script>
 
-<div class="container">
-	<h1>Welcome</h1>
-	<p class="instructions">
-		Enter words and click on the letters to toggle their state
-		<span class="example">Gray for incorrect letters</span>
-		<span class="example">Yellow for letters in wrong position</span>
-		<span class="example">Green for letters in correct position</span>
-	</p>
-	<main class="main-content">
-		<div class="action-buttons">
-			<button
-				class="action-button write"
-				title="Write"
-				onclick={() => (input_state = CharacterState.WRITING)}
-			>
-				<FilePenLine />
-			</button>
-			<button
-				class="action-button select"
-				title="Select State"
-				onclick={() => (input_state = CharacterState.INCORRECT)}
-			>
-				<Grid2x2Check />
-			</button>
-		</div>
-		<div class="word-grid">
-			{#each wordRows as row, rowIdx}
-				<div class="word-row">
-					<button
-						class="remove-row"
-						onclick={() => removeRow(rowIdx)}
-						title="Remove row"
-						aria-label="Remove row"
-					>
-						<X />
-					</button>
-					<div class="word-row-content">
-						{#each row as char, charIdx}
-							<input
-								type="text"
-								maxlength="1"
-								data-row={rowIdx}
-								data-char={charIdx}
-								value={char.value}
-								class={char.state}
-								onfocus={(e) => (e.target as HTMLInputElement).select()}
-								oninput={(e) => handleCharInput(rowIdx, charIdx, e)}
-								onkeydown={(e) => handleCharKeydown(rowIdx, charIdx, e)}
-								onmousedown={(e) => handleMouseDown(rowIdx, charIdx, e)}
-							/>
-						{/each}
+<div class="page-background">
+	<div class="container">
+		<header class="header">
+			<h1 class="welcome">Welcome</h1>
+			<div><ThemeSwitch /></div>
+		</header>
+		<p class="instructions">
+			Enter words and click on the letters to toggle their state
+			<span class="example">Gray for incorrect letters</span>
+			<span class="example">Yellow for letters in wrong position</span>
+			<span class="example">Green for letters in correct position</span>
+		</p>
+		<main class="main-content">
+			<div class="action-buttons">
+				<button
+					class="action-button write"
+					title="Write"
+					onclick={() => (input_state = CharacterState.WRITING)}
+				>
+					<FilePenLine />
+				</button>
+				<button
+					class="action-button select"
+					title="Select State"
+					onclick={() => (input_state = CharacterState.INCORRECT)}
+				>
+					<Grid2x2Check />
+				</button>
+			</div>
+			<div class="word-grid">
+				{#each wordRows as row, rowIdx}
+					<div class="word-row">
+						<button
+							class="remove-row"
+							onclick={() => removeRow(rowIdx)}
+							title="Remove row"
+							aria-label="Remove row"
+						>
+							<X />
+						</button>
+						<div class="word-row-content">
+							{#each row as char, charIdx}
+								<input
+									type="text"
+									maxlength="1"
+									data-row={rowIdx}
+									data-char={charIdx}
+									value={char.value}
+									class={char.state}
+									onfocus={(e) => (e.target as HTMLInputElement).select()}
+									oninput={(e) => handleCharInput(rowIdx, charIdx, e)}
+									onkeydown={(e) => handleCharKeydown(rowIdx, charIdx, e)}
+									onmousedown={(e) => handleMouseDown(rowIdx, charIdx, e)}
+								/>
+							{/each}
+						</div>
+						<div class="empty-space"></div>
 					</div>
-					<div class="empty-space"></div>
-				</div>
-			{/each}
-		</div>
-
-		<div class="controls">
-			<button onclick={addNewRow} disabled={wordRows.length >= 6} class="add-row">Add Row</button>
-			<button onclick={handleSearch} class="search">Filter</button>
-			<button onclick={reset} class="reset">Reset</button>
-		</div>
-
-		{#if error}
-			<div class="error">{error}</div>
-		{/if}
-	</main>
-	{#if loading}
-		<div class="loading">Loading...</div>
-	{:else if result.length}
-		<div class="results">
-			<h2>Found {result.length} words:</h2>
-			<div class="word-list">
-				{#each result as word}
-					<button class="word" onclick={(e) => showOverlay(word, e)}>{word}</button>
 				{/each}
 			</div>
-		</div>
-	{/if}
-	<WordDefinitionOverlay
-		{selectedWord}
-		{bubblePos}
-		onClose={closeOverlay}
-		position={overlayPosition}
-	/>
 
-	<footer class="footer">
-		<p>
-			This website is an independent tool designed to assist users in solving word puzzles and is
-			not affiliated with, endorsed by, or sponsored by The New York Times Company or the official
-			Wordle game. "Wordle" is a trademark of The New York Times Company. All references to Wordle
-			are made for descriptive and informational purposes only. This site does not host or reproduce
-			the original Wordle game and is intended solely as a resource for players. All content and
-			tools provided here are independently created.
-		</p>
-	</footer>
+			<div class="controls">
+				<button onclick={addNewRow} disabled={wordRows.length >= 6} class="add-row">Add Row</button>
+				<button onclick={handleSearch} class="search">Filter</button>
+				<button onclick={reset} class="reset">Reset</button>
+			</div>
+
+			{#if error}
+				<div class="error">{error}</div>
+			{/if}
+		</main>
+		{#if loading}
+			<div class="loading">Loading...</div>
+		{:else if result.length}
+			<div class="results">
+				<h2>Found {result.length} words</h2>
+				<div class="word-list">
+					{#each result as word}
+						<button class="word" onclick={(e) => showOverlay(word, e)}>{word}</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+		<WordDefinitionOverlay
+			{selectedWord}
+			{bubblePos}
+			onClose={closeOverlay}
+			position={overlayPosition}
+		/>
+
+		<footer class="footer">
+			<p>
+				This website is an independent tool designed to assist users in solving word puzzles and is
+				not affiliated with, endorsed by, or sponsored by The New York Times Company or the official
+				Wordle game. "Wordle" is a trademark of The New York Times Company. All references to Wordle
+				are made for descriptive and informational purposes only. This site does not host or
+				reproduce the original Wordle game and is intended solely as a resource for players. All
+				content and tools provided here are independently created.
+			</p>
+		</footer>
+	</div>
 </div>
 
 <style>
-	:root {
+	:global(body) {
+		margin: 0;
+		font-family: 'Comic Sans MS';
+	}
+
+	:global(button) {
+		font-family: 'Comic Sans MS';
+	}
+
+	:global(input) {
+		font-family: 'Comic Sans MS';
+	}
+
+	:global(:root) {
 		--white: white;
+		--black: #1a1a1a;
 
-		--gray-dark: #1a1a1a;
-		--gray-medium: #4a4a4a;
-		--gray-light: #787c7e;
-		--gray-border: #d3d6da;
-		--gray-border-focus: #878a8c;
+		--gray-dark-base: #1a1a1a;
+		--gray-medium-base: #4a4a4a;
+		--gray-light-base: #787c7e;
+		--gray-border-base: #d3d6da;
+		--gray-border-focus-base: #878a8c;
 
-		--yellow: #c9b458;
-		--green: #6aaa64;
-		--red: #dc2626;
+		--yellow-base: #c9b458;
+		--green-base: #6aaa64;
+		--red-base: #dc2626;
 
 		--shadow-hover: rgba(0, 0, 0, 0.1);
 
-		--color-primary: var(--gray-dark);
-		--color-secondary: var(--gray-medium);
+		/* Light Theme */
+		--color-page-bg: #f4f4f5; /* zinc-100 */
+		--color-container-bg: var(--white);
+		--color-primary: var(--gray-dark-base);
+		--color-secondary: var(--gray-medium-base);
 		--color-tertiary: var(--white);
-		--color-background: var(--gray-medium);
-
-		--color-incorrect-position: var(--gray-light);
-		--color-correct-position: var(--green);
-		--color-wrong-position: var(--yellow);
-
+		--gray-border: var(--gray-border-base);
+		--gray-border-focus: var(--gray-border-focus-base);
+		--color-incorrect: var(--gray-light-base);
+		--color-correct-position: var(--green-base);
+		--color-wrong-position: var(--yellow-base);
 		--color-error-background: var(--white);
-		--color-error: var(--red);
+		--color-error: var(--red-base);
+		--red: var(--red-base);
+	}
+
+	:global(body.dark) {
+		--gray-dark-base: #e5e5e5;
+		--gray-medium-base: #a3a3a3;
+		--gray-light-base: #737373;
+		--gray-border-base: #525252;
+		--gray-border-focus-base: #737373;
+
+		/* Dark Theme */
+		--color-page-bg: var(--black);
+		--color-container-bg: #27272a; /* zinc-800 */
+		--color-primary: var(--gray-dark-base);
+		--color-secondary: var(--gray-medium-base);
+		--color-tertiary: var(--black);
+		--gray-border: var(--gray-border-base);
+		--gray-border-focus: var(--gray-border-focus-base);
+		--color-incorrect: var(--gray-light-base);
+	}
+
+	.page-background {
+		background-color: var(--color-page-bg);
+		min-height: 100vh;
+		padding: 20px 0;
+	}
+
+	.welcome {
+		text-align: center;
+		color: var(--color-primary);
+		margin: 0 auto;
+		font-size: 2.7rem;
+		padding: 20px 0;
+		width: 100%;
 	}
 
 	.container {
@@ -304,11 +360,18 @@
 		padding: 20px;
 		display: flex;
 		flex-direction: column;
-		min-height: 100vh;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
+		min-height: calc(100vh - 80px);
+		background-color: var(--color-bg);
+		color: var(--color-primary);
+		/* border-radius: 8px; */
+		/* box-shadow: 0 4px 6px var(--shadow-hover); */
+	}
+
+	.header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
 	}
 
 	h1 {
@@ -342,7 +405,7 @@
 		/* gradient over incorect, wrongposition, correct */
 		background: linear-gradient(
 			to right,
-			var(--color-incorrect-position),
+			var(--color-incorrect),
 			var(--color-wrong-position),
 			var(--color-correct-position)
 		);
@@ -420,6 +483,8 @@
 		caret-color: transparent;
 		-webkit-user-select: none; /* Safari */
 		user-select: none; /* Standard syntax */
+		background-color: transparent;
+		color: var(--color-primary);
 	}
 	input::selection {
 		background: transparent;
@@ -447,8 +512,8 @@
 	}
 
 	input.incorrect {
-		background-color: var(--color-incorrect-position);
-		border-color: var(--color-incorrect-position);
+		background-color: var(--color-incorrect);
+		border-color: var(--color-incorrect);
 		color: var(--color-tertiary);
 	}
 
@@ -506,23 +571,12 @@
 		opacity: 0.5;
 	}
 
-	.error {
-		color: var(--color-error);
-		text-align: center;
-		margin: 16px 0;
-		padding: 12px;
-		background-color: var(--color-error-background);
-		border-radius: 4px;
-	}
-
-	.loading {
-		text-align: center;
-		margin: 16px 0;
-		color: var(--color-secondary);
+	.main-content {
+		flex-grow: 1;
 	}
 
 	.results {
-		margin: 24px 0;
+		margin: 2rem;
 	}
 
 	.results h2 {
@@ -534,29 +588,40 @@
 	.word-list {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 12px;
+		gap: 8px;
 		justify-content: center;
+		margin-top: 1rem;
+		font-size: 1.1em;
+		text-transform: uppercase;
 	}
 
 	.word {
-		padding: 8px 16px;
-		background-color: var(--color-background);
-		border-radius: 4px;
-		text-transform: uppercase;
-		font-weight: 600;
+		background-color: var(--color-secondary);
 		color: var(--color-tertiary);
-		transition: all 0.2s ease;
+		padding: 8px 14px;
+		border-radius: 4px;
+		cursor: pointer;
+		transition: background-color 0.2s;
+		text-transform: uppercase;
 	}
 
 	.word:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 2px 8px var(--shadow-hover);
+		background-color: var(--color-primary);
+	}
+
+	.loading,
+	.error {
+		text-align: center;
+		margin-top: 2rem;
+		font-size: 1.2rem;
 	}
 
 	.footer {
-		padding: 1rem;
-		text-align: center;
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--gray-border);
+		font-size: 0.8rem;
 		color: var(--color-secondary);
-		font-size: 0.9em;
+		text-align: center;
 	}
 </style>
