@@ -1,6 +1,6 @@
 <script lang="ts">
 	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
-	import { X } from 'lucide-svelte';
+	import { X, FilePenLine, Grid2x2Check } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
 	import type { WordRow } from '$lib/types';
@@ -20,6 +20,8 @@
 	let selectedWord = $state('');
 	let bubblePos = $state({ top: 0, bottom: 0, left: 0 });
 	let overlayPosition = $state<'top' | 'bottom'>('bottom');
+
+	let input_state = $state(CharacterState.WRITING);
 
 	// Local storage keys
 	const WORD_ROWS_KEY = 'wordle-helper-wordRows';
@@ -87,16 +89,36 @@
 		}
 	}
 
+	function handleMouseDown(rowIdx: number, charIdx: number, event: MouseEvent) {
+		if (input_state != CharacterState.WRITING) {
+			toggleCharState(rowIdx, charIdx);
+			event.preventDefault();
+		}
+	}
+
 	function toggleCharState(rowIdx: number, charIdx: number) {
-		if (!wordRows[rowIdx][charIdx].value) return; // Don't toggle empty cells
-		const states = Object.values(CharacterState);
-		const currentState = wordRows[rowIdx][charIdx].state;
-		const currentIdx = states.indexOf(currentState);
-		const nextIdx = (currentIdx + 1) % states.length;
-		wordRows[rowIdx][charIdx].state = states[nextIdx];
+		// based on input_state, toggle the character state
+		const currentChar = wordRows[rowIdx][charIdx];
+		switch (input_state) {
+			case CharacterState.WRITING:
+				currentChar.state = currentChar.state;
+				break;
+			default:
+				if (!wordRows[rowIdx][charIdx].value) return; // Don't toggle empty cells
+				const states = Object.values(CharacterState);
+				const currentState = wordRows[rowIdx][charIdx].state;
+				const currentIdx = states.indexOf(currentState);
+				const nextIdx = (currentIdx + 1) % states.length;
+				wordRows[rowIdx][charIdx].state = states[nextIdx];
+				// ignore the writing state
+				if (states[nextIdx] === CharacterState.WRITING) {
+					wordRows[rowIdx][charIdx].state = CharacterState.INCORRECT;
+				}
+		}
 	}
 
 	function addNewRow() {
+		input_state = CharacterState.WRITING;
 		wordRows = [
 			...wordRows,
 			Array(5)
@@ -112,6 +134,7 @@
 	}
 
 	function reset() {
+		input_state = CharacterState.WRITING;
 		wordRows = Array(1)
 			.fill('')
 			.map(() => Array(5).fill({ value: '', state: 'incorrect' }));
@@ -152,11 +175,27 @@
 	<h1>Welcome</h1>
 	<p class="instructions">
 		Enter words and click on the letters to toggle their state
-		<span class="example incorrect">Gray for incorrect letters</span>
-		<span class="example wrong-position">Yellow for letters in wrong position</span>
-		<span class="example correct-position">Green for letters in correct position</span>
+		<span class="example">Gray for incorrect letters</span>
+		<span class="example">Yellow for letters in wrong position</span>
+		<span class="example">Green for letters in correct position</span>
 	</p>
 	<main class="main-content">
+		<div class="action-buttons">
+			<button
+				class="action-button write"
+				title="Write"
+				onclick={() => (input_state = CharacterState.WRITING)}
+			>
+				<FilePenLine />
+			</button>
+			<button
+				class="action-button select"
+				title="Select State"
+				onclick={() => (input_state = CharacterState.INCORRECT)}
+			>
+				<Grid2x2Check />
+			</button>
+		</div>
 		<div class="word-grid">
 			{#each wordRows as row, rowIdx}
 				<div class="word-row">
@@ -180,7 +219,7 @@
 								onfocus={(e) => (e.target as HTMLInputElement).select()}
 								oninput={(e) => handleCharInput(rowIdx, charIdx, e)}
 								onkeydown={(e) => handleCharKeydown(rowIdx, charIdx, e)}
-								onclick={() => toggleCharState(rowIdx, charIdx)}
+								onmousedown={(e) => handleMouseDown(rowIdx, charIdx, e)}
 							/>
 						{/each}
 					</div>
@@ -279,6 +318,36 @@
 		font-size: 2.7rem;
 		font-weight: 700;
 	}
+	.action-buttons {
+		display: flex;
+		justify-content: center;
+		gap: 8px;
+		margin-bottom: 16px;
+	}
+
+	.action-button {
+		width: 45px;
+		height: 45px;
+		padding: 2px;
+		text-align: center;
+		justify-content: center;
+	}
+
+	.write {
+		background-color: var(--color-secondary);
+		color: var(--color-tertiary);
+	}
+
+	.select {
+		/* gradient over incorect, wrongposition, correct */
+		background: linear-gradient(
+			to right,
+			var(--color-incorrect-position),
+			var(--color-wrong-position),
+			var(--color-correct-position)
+		);
+		color: var(--color-tertiary);
+	}
 
 	.instructions {
 		text-align: center;
@@ -348,6 +417,9 @@
 		border-radius: 4px;
 		cursor: pointer;
 		transition: all 0.2s ease;
+		caret-color: transparent;
+		-webkit-user-select: none; /* Safari */
+		user-select: none; /* Standard syntax */
 	}
 	input::selection {
 		background: transparent;
