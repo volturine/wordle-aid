@@ -5,7 +5,7 @@ COPY frontend/ ./
 RUN npm install && npm run build
 
 # --- Backend build stage ---
-FROM ghcr.io/astral-sh/uv:0.8.13-python3.13-alpine
+FROM python:3.11-slim
 
 # Create a custom user with UID 1234 and GID 1234
 RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
@@ -20,6 +20,8 @@ WORKDIR /home/wordle_helper
 COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend
 
 # backend
+WORKDIR /home/wordle_helper/backend
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 COPY backend/ ./
 
 # Fix ownership and permissions for all files
