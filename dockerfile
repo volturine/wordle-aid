@@ -2,7 +2,7 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /frontend
 COPY frontend/ ./
-COPY frontend/.env ./
+ENV PUBLIC_API_BASE=http://localhost:8000
 RUN npm install && npm run build
 
 # --- Backend build stage ---
