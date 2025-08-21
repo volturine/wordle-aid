@@ -71,7 +71,7 @@ async def get_word_definition(word: str):
 
 
 # Serve static files from the 'build' directory
-static_files_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "build")
+static_files_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "build")
 app.mount("/_app", StaticFiles(directory=os.path.join(static_files_dir, "_app")), name="app")
 
 
