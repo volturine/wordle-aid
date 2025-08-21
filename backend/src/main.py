@@ -1,12 +1,14 @@
 # main.py
 
 import logging
-import time
+import os
 from functools import lru_cache
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from wordle_helper import WordleHelper
 
 # Configure logging
@@ -66,6 +68,22 @@ async def get_word_definition(word: str):
     except HTTPException:
         # Re-raise HTTPExceptions as they already contain proper error info
         raise
+
+
+# Serve static files from the 'build' directory
+static_files_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "build")
+app.mount("/_app", StaticFiles(directory=os.path.join(static_files_dir, "_app")), name="app")
+
+
+@app.get("/{full_path:path}")
+async def serve_static_or_index(full_path: str):
+    path = os.path.join(static_files_dir, full_path)
+    if os.path.isfile(path):
+        return FileResponse(path)
+    index_path = os.path.join(static_files_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="File not found")
 
 
 if __name__ == "__main__":

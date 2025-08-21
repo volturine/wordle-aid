@@ -1,9 +1,6 @@
 #!/bin/sh
-# Start backend
-cd backend && uv run ./src/main.py &
+# Build frontend
+cd frontend && npm install && npm run build
 
-# Start frontend (Vite dev server)
-cd frontend && \
-npm install && \
-npm run build && \
-npm run dev -- --host 0.0.0.0 --port 3000
+# Start backend
+cd ../backend && uv run ./src/main.py
