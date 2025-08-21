@@ -18,6 +18,7 @@ WORKDIR /home/wordle_helper
 
 # Frontend
 COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend
+COPY --from=frontend-build /frontend/.env /home/wordle_helper/frontend/.env
 
 # backend
 WORKDIR /home/wordle_helper/backend
