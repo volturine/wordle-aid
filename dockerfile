@@ -2,7 +2,6 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /frontend
 COPY frontend/ ./
-ENV PUBLIC_API_BASE=https://api.wordle-aid.com
 RUN npm install && npm run build
 
 # --- Backend build stage ---

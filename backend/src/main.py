@@ -31,7 +31,7 @@ app.add_middleware(
 )
 
 
-@app.post("/filter")
+@app.post("/api/filter")
 async def filter_words_v2(request: Request):
     data = await request.json()
     logger.info(f"Received filter request with data: {data}")
@@ -52,7 +52,7 @@ def _get_word_definition(word: str) -> dict:
     return response.json()
 
 
-@app.get("/word-definition/{word}")
+@app.get("/api/word-definition/{word}")
 async def get_word_definition(word: str):
     """
     Fetch word definition from dictionary API

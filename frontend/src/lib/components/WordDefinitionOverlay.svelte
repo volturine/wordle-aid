@@ -198,8 +198,8 @@
 	}
 
 	.bubble-content {
-		background: white;
-		border: 2px solid #ccc;
+		background: var(--color-container-bg);
+		border: 2px solid var(--gray-border);
 		padding: 1rem;
 		border-radius: 1rem;
 		box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
@@ -218,7 +218,7 @@
 		background: transparent;
 		font-size: 1.2rem;
 		cursor: pointer;
-		color: var(--gray-medium);
+		color: var(--color-secondary);
 	}
 
 	.close-button:hover {
@@ -233,7 +233,7 @@
 	}
 
 	.phonetic {
-		color: var(--gray-medium);
+		color: var(--color-secondary);
 		font-style: italic;
 		margin: 0 0 1rem 0;
 		font-family: 'Courier New', monospace;
@@ -269,9 +269,9 @@
 
 	.example {
 		margin: 0;
-		color: var(--gray-medium);
-		font-size: 0.9rem;
+		color: var(--color-secondary);
 		font-style: italic;
+		font-size: 0.9rem;
 	}
 
 	.error-text {
