@@ -4,9 +4,8 @@ import logging
 import os
 from functools import lru_cache
 
-import httpx
 import requests
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -69,38 +68,6 @@ async def get_word_definition(word: str):
     except HTTPException:
         # Re-raise HTTPExceptions as they already contain proper error info
         raise
-
-
-# The URL of the actual backend API.
-# This will be configured via an environment variable.
-# For example, in docker-compose, this could be 'http://actual-api-service:8000'
-API_BASE_URL = os.getenv("API_BASE_URL", "https://localhost:8000")
-
-# An HTTP client to forward requests to the real API
-client = httpx.AsyncClient(base_url=API_BASE_URL)
-
-
-@app.api_route("/api/{path:path}")
-async def reverse_proxy(request: Request, path: str):
-    """
-    This route acts as a reverse proxy.
-    It forwards requests from /api/{path} to the API_BASE_URL.
-    """
-    # Build the URL for the downstream request
-    url = httpx.URL(path=f"/{path}", query=request.url.query.encode("utf-8"))
-
-    # Build the request to forward
-    rp_req = client.build_request(request.method, url, headers=request.headers.raw, content=await request.body())
-
-    # Make the downstream request
-    rp_resp = await client.send(rp_req, stream=True)
-
-    # Return the response from the downstream service
-    return Response(
-        content=rp_resp.content,
-        status_code=rp_resp.status_code,
-        headers=rp_resp.headers,
-    )
 
 
 # Serve static files from the 'build' directory
