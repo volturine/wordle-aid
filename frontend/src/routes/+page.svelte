@@ -179,7 +179,7 @@
 			<div><ThemeSwitch /></div>
 		</header>
 		<p class="instructions">
-			Enter words and click on the letters to toggle their state
+			Enter words, click the select state button and to mark letters as:
 			<span class="example">Gray for incorrect letters</span>
 			<span class="example">Yellow for letters in wrong position</span>
 			<span class="example">Green for letters in correct position</span>
