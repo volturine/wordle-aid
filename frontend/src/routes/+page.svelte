@@ -282,6 +282,7 @@
 
 	:global(button) {
 		font-family: 'Comic Sans MS';
+		font-size: 1em;
 	}
 
 	:global(input) {
@@ -471,7 +472,7 @@
 		padding: 2px;
 		text-align: center;
 		justify-content: center;
-		font-size: 2em;
+		font-size: 1.7em;
 		font-weight: bold;
 		text-transform: uppercase;
 		border: 2px solid var(--gray-border);
@@ -520,7 +521,6 @@
 		gap: 16px;
 		justify-content: center;
 		margin: 24px auto;
-		/* width: fit-content; */
 	}
 
 	@media (max-width: 480px) {
@@ -532,7 +532,6 @@
 
 	button {
 		padding: 12px 12px;
-		font-size: 1em;
 		cursor: pointer;
 		border: none;
 		border-radius: 4px;
@@ -574,7 +573,9 @@
 	}
 
 	.results {
-		margin: 2rem;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
 	}
 
 	.results h2 {
@@ -589,7 +590,6 @@
 		gap: 8px;
 		justify-content: center;
 		margin-top: 1rem;
-		font-size: 1.1em;
 		text-transform: uppercase;
 	}
 
@@ -599,6 +599,7 @@
 		padding: 8px 14px;
 		border-radius: 4px;
 		cursor: pointer;
+		font-size: 1em;
 		transition: background-color 0.2s;
 		text-transform: uppercase;
 	}
