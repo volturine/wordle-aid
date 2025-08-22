@@ -179,7 +179,6 @@
 			<div><ThemeSwitch /></div>
 		</header>
 		<p class="instructions">
-			Enter words, click the select state button and to mark letters as:
 			<span class="example">Gray for incorrect letters</span>
 			<span class="example">Yellow for letters in wrong position</span>
 			<span class="example">Green for letters in correct position</span>
@@ -345,13 +344,19 @@
 		padding: 20px 0;
 	}
 
+	.header {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		height: 60px;
+	}
+
 	.welcome {
-		text-align: center;
-		color: var(--color-primary);
-		margin: 0 auto;
-		font-size: 2.7rem;
-		padding: 20px 0;
-		width: 100%;
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		margin: 0;
 	}
 
 	.container {
@@ -365,13 +370,6 @@
 		color: var(--color-primary);
 		/* border-radius: 8px; */
 		/* box-shadow: 0 4px 6px var(--shadow-hover); */
-	}
-
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1rem;
 	}
 
 	h1 {
