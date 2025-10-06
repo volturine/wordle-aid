@@ -3,16 +3,12 @@
 	import { Sun, Moon } from 'lucide-svelte';
 
 	function toggleTheme() {
-		// Add class to disable transitions during theme change
 		document.body.classList.add('theme-transitioning');
 
 		theme.update((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
 
-		// Remove class after a brief delay to re-enable transitions
 		requestAnimationFrame(() => {
-			setTimeout(() => {
-				document.body.classList.remove('theme-transitioning');
-			}, 50);
+			document.body.classList.remove('theme-transitioning');
 		});
 	}
 </script>
