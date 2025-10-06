@@ -627,8 +627,6 @@
 		font-size: 1em;
 		transition: background-color 0.2s;
 		text-transform: uppercase;
-		/* Performance optimizations */
-		content-visibility: auto;
 	}
 
 	/* Disable transitions during theme change */
