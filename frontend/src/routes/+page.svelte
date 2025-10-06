@@ -54,6 +54,24 @@
 		selectedWord = '';
 	}
 
+	function handleUseWord(word: string) {
+		input_state = CharacterState.WRITING;
+		const newRow = word.split('').map((char) => ({
+			value: char.toLowerCase(),
+			state: CharacterState.INCORRECT
+		}));
+
+		// if row is empty, replace it
+		const emptyRowIdx = wordRows.findIndex((row) => row.every((char) => !char.value));
+		if (emptyRowIdx !== -1) {
+			wordRows[emptyRowIdx] = newRow;
+		} else {
+			wordRows = [...wordRows, newRow];
+		}
+
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
 	function handleCharInput(rowIdx: number, charIdx: number, event: Event) {
 		const input = event.target as HTMLInputElement;
 		const value = handleSingleCharInput(input.value);
@@ -187,14 +205,16 @@
 			<div class="action-buttons">
 				<button
 					class="action-button write"
-					title="Write"
+					class:active={input_state === CharacterState.WRITING}
+					title="Write Mode"
 					onclick={() => (input_state = CharacterState.WRITING)}
 				>
 					<FilePenLine />
 				</button>
 				<button
 					class="action-button select"
-					title="Select State"
+					class:active={input_state !== CharacterState.WRITING}
+					title="Select State Mode"
 					onclick={() => (input_state = CharacterState.INCORRECT)}
 				>
 					<Grid2x2Check />
@@ -258,6 +278,7 @@
 			{selectedWord}
 			{bubblePos}
 			onClose={closeOverlay}
+			onUseWord={handleUseWord}
 			position={overlayPosition}
 		/>
 
@@ -369,8 +390,6 @@
 		min-height: calc(100vh - 80px);
 		background-color: var(--color-bg);
 		color: var(--color-primary);
-		/* border-radius: 8px; */
-		/* box-shadow: 0 4px 6px var(--shadow-hover); */
 	}
 
 	h1 {
@@ -383,16 +402,24 @@
 	.action-buttons {
 		display: flex;
 		justify-content: center;
-		gap: 8px;
+		gap: 14px;
 		margin-bottom: 16px;
 	}
 
 	.action-button {
-		width: 45px;
-		height: 45px;
-		padding: 2px;
-		text-align: center;
+		width: 43px;
+		height: 43px;
+		display: flex;
+		align-items: center;
 		justify-content: center;
+		position: relative;
+		transition: all 0.2s ease;
+		padding: 0;
+	}
+
+	.action-button.active {
+		border-color: var(--color-primary);
+		transform: scale(1.35);
 	}
 
 	.write {
@@ -490,10 +517,6 @@
 		color: inherit;
 	}
 
-	input:hover {
-		transform: scale(1.05);
-	}
-
 	input:focus {
 		border-color: var(--gray-border-focus);
 	}
@@ -559,7 +582,6 @@
 
 	button.reset:hover:not(:disabled),
 	button:hover:not(:disabled) {
-		transform: translateY(-2px);
 		box-shadow: 0 2px 8px var(--shadow-hover);
 	}
 
@@ -591,6 +613,9 @@
 		justify-content: center;
 		margin-top: 1rem;
 		text-transform: uppercase;
+		/* Performance optimizations */
+		contain: layout style paint;
+		will-change: auto;
 	}
 
 	.word {
@@ -602,6 +627,13 @@
 		font-size: 1em;
 		transition: background-color 0.2s;
 		text-transform: uppercase;
+		/* Performance optimizations */
+		content-visibility: auto;
+	}
+
+	/* Disable transitions during theme change */
+	:global(body.theme-transitioning) .word {
+		transition: none !important;
 	}
 
 	.word:hover {
