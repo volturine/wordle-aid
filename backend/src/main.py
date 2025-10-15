@@ -32,8 +32,8 @@ app.add_middleware(
 
 
 @app.post("/api/filter")
-def filter_words_v2(request: Request):
-    data = request.json()
+async def filter_words_v2(request: Request):
+    data = await request.json()
     logger.info(f"Received filter request with data: {data}")
     filter_spec = data.get("filter_spec", {})
     filtered = helper_v2.filter_characters(filter_spec)
