@@ -2,4 +2,4 @@
 name = "backend"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["uvicorn", "fastapi", "pytest", "httpx", "requests"]
+dependencies = ["uvicorn", "fastapi", "pydantic", "pytest", "httpx", "requests"]
