@@ -32,7 +32,7 @@ app.add_middleware(
 
 
 @app.post("/api/filter")
-async def filter_words_v2(request: Request):
+def filter_words_v2(request: Request):
     data = await request.json()
     logger.info(f"Received filter request with data: {data}")
     filter_spec = data.get("filter_spec", {})
@@ -53,7 +53,7 @@ def _get_word_definition(word: str) -> dict:
 
 
 @app.get("/api/word-definition/{word}")
-async def get_word_definition(word: str):
+def get_word_definition(word: str):
     """
     Fetch word definition from dictionary API
     """
@@ -76,7 +76,7 @@ app.mount("/_app", StaticFiles(directory=os.path.join(static_files_dir, "_app"))
 
 
 @app.get("/{full_path:path}")
-async def serve_static_or_index(full_path: str):
+def serve_static_or_index(full_path: str):
     path = os.path.join(static_files_dir, full_path)
     if os.path.isfile(path):
         return FileResponse(path)
