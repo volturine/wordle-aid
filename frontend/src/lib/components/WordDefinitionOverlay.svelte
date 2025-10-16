@@ -117,7 +117,7 @@
 					}}
 					title="Use this word">USE</button
 				>
-				<button class="close-button" onclick={onClose} title="Close">✕</button>
+				<button class="close-button" onclick={onClose} title="Close">?</button>
 			</div>
 
 			<h3 class="word-title">{selectedWord}</h3>
@@ -126,33 +126,15 @@
 				<p class="loading-text">Loading definition...</p>
 			{:else if definitionError}
 				<p class="error-text">{definitionError}</p>
-			{:else if wordDefinition && Array.isArray(wordDefinition) && wordDefinition.length > 0}
-				{@const entry = wordDefinition[0]}
-				{#if entry.phonetic}
-					<p class="phonetic">/{entry.phonetic}/</p>
-				{/if}
-
-				{#if entry.meanings && entry.meanings.length > 0}
-					<div class="meanings-container">
-						{#each entry.meanings.slice(0, 2) as meaning}
-							<div class="meaning">
-								<h4 class="part-of-speech">{meaning.partOfSpeech}</h4>
-								{#if meaning.definitions && meaning.definitions.length > 0}
-									{#each meaning.definitions.slice(0, 2) as definition}
-										<div class="definition">
-											<p class="definition-text">{definition.definition}</p>
-											{#if definition.example}
-												<p class="example">"{definition.example}"</p>
-											{/if}
-										</div>
-									{/each}
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-			{:else}
-				<p class="error-text">No definition available</p>
+			{:else if wordDefinition}
+				<div class="meanings-container">
+					{#each wordDefinition.meanings.slice(0, 4) as meaning}
+						<div class="meaning">
+							<h4 class="part-of-speech">{meaning.partOfSpeech}</h4>
+							<p class="example">"{meaning.definition}"</p>
+						</div>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</div>
