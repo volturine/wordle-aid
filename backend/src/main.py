@@ -45,7 +45,7 @@ def _get_word_definition(word: str) -> dict:
     """
     Fetch word definition from dictionary API
     """
-    response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}")
+    response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}", timeout=2)
     if not response.ok:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch word definition")
 
