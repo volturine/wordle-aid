@@ -15,10 +15,21 @@ WORKDIR /home/wordle_helper
 # Frontend
 COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend/build
 
+WORKDIR /home/wordle_helper/database
+COPY database/words.db ./
+COPY database/word_definitions.db ./
+
 # backend
 WORKDIR /home/wordle_helper/backend
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
-COPY backend/ ./
+
+# Copy dependency files first for better caching
+COPY backend/pyproject.toml backend/uv.lock ./
+
+# Copy source code and data files
+COPY backend/api/ ./api/
+COPY backend/modules/ ./modules/
+COPY backend/main.py ./main.py
 
 # Fix ownership and permissions for all files
 RUN chown -R customuser:appgroup /home/wordle_helper
@@ -29,4 +40,4 @@ USER customuser
 EXPOSE 8000 3000
 
 WORKDIR /home/wordle_helper/backend
-CMD ["uv", "run", "src/main.py"]
+CMD ["uv", "run", "main.py"]

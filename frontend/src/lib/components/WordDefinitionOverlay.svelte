@@ -126,27 +126,15 @@
 				<p class="loading-text">Loading definition...</p>
 			{:else if definitionError}
 				<p class="error-text">{definitionError}</p>
-			{:else if wordDefinition && Array.isArray(wordDefinition) && wordDefinition.length > 0}
-				{@const entry = wordDefinition[0]}
-				{#if entry.phonetic}
-					<p class="phonetic">/{entry.phonetic}/</p>
-				{/if}
-
-				{#if entry.meanings && entry.meanings.length > 0}
+			{:else if wordDefinition}
+				{#if wordDefinition.definitions}
 					<div class="meanings-container">
-						{#each entry.meanings.slice(0, 2) as meaning}
+						{#each wordDefinition.definitions.slice(0, 3) as meaning}
 							<div class="meaning">
 								<h4 class="part-of-speech">{meaning.partOfSpeech}</h4>
-								{#if meaning.definitions && meaning.definitions.length > 0}
-									{#each meaning.definitions.slice(0, 2) as definition}
-										<div class="definition">
-											<p class="definition-text">{definition.definition}</p>
-											{#if definition.example}
-												<p class="example">"{definition.example}"</p>
-											{/if}
-										</div>
-									{/each}
-								{/if}
+								<div class="definition">
+									<p class="definition-text">{meaning.definition}</p>
+								</div>
 							</div>
 						{/each}
 					</div>
@@ -250,14 +238,6 @@
 		font-size: 1.25rem;
 	}
 
-	.phonetic {
-		color: var(--color-secondary);
-		font-style: italic;
-		margin: 0 0 1rem 0;
-		font-family: 'Courier New', monospace;
-		font-size: 1.1rem;
-	}
-
 	.loading-text {
 		color: var(--color-secondary);
 		font-style: italic;
@@ -267,7 +247,6 @@
 	.meanings-container {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
 	}
 
 	.meaning {
@@ -295,15 +274,6 @@
 		color: var(--color-primary);
 		line-height: 1.5;
 		font-size: 0.95rem;
-	}
-
-	.example {
-		margin: 0;
-		color: var(--color-secondary);
-		font-style: italic;
-		font-size: 0.9rem;
-		padding-left: 0.5rem;
-		border-left: 2px solid var(--gray-border);
 	}
 
 	.error-text {

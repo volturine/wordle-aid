@@ -11,27 +11,12 @@ export interface CharacterInfo {
 }
 
 
-export interface DictionaryDefinition {
-    definition: string;
-    example?: string;
-    synonyms: string[];
-    antonyms: string[];
-}
-
 export interface DictionaryMeaning {
     partOfSpeech: string;
-    definitions: DictionaryDefinition[];
-}
-
-export interface DictionaryPhonetic {
-    text: string;
-    audio?: string;
+    definition: string;
 }
 
 export interface DictionaryEntry {
     word: string;
-    phonetic?: string;
-    phonetics: DictionaryPhonetic[];
-    origin?: string;
-    meanings: DictionaryMeaning[];
+    definitions: DictionaryMeaning[]; // Support alternative API format
 }
