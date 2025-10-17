@@ -1,12 +1,12 @@
-from pathlib import Path
+"""
+Business logic for word filtering using WordleHelper
+"""
+
 from functools import lru_cache
-import sqlite3
 import logging
 
-CURRENT_DIR = Path(__file__).parent
-DATABASE_PATH = CURRENT_DIR.parent / "words.db"
+from .models import load_words_by_length
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
 
@@ -17,38 +17,18 @@ class WordleHelper:
         self._set_dictionary(length=length)
 
     def _set_dictionary(self, length: int = 5) -> None:
-        logger.info(f"Loading dictionary for {length}-letter words from SQLite database")
+        """Load dictionary from database using models"""
+        # Load words from database via models
+        words = load_words_by_length(length)
+        self.dictionary = words
 
-        # Check if database exists
-        if not DATABASE_PATH.exists():
-            logger.error(f"Database not found at {DATABASE_PATH}. Please run migrate_to_sqlite.py first.")
-            raise FileNotFoundError(f"Database not found at {DATABASE_PATH}")
-
-        # Load words from SQLite database
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-
-        try:
-            # Get words of specified length
-            cursor.execute(f"SELECT word FROM words WHERE length = {length}")
-            words = [row[0] for row in cursor.fetchall()]
-
-            self.dictionary = set(words)
-            logger.info(f"Loaded {len(self.dictionary)} words of length {length}")
-
-            # Process the dictionary to create dictionary of characters where for each character there will be up to length lists of words
-            self.processed_dictionary = {}
-            for word in self.dictionary:
-                for pos, char in enumerate(word):
-                    if char not in self.processed_dictionary:
-                        self.processed_dictionary[char] = [set() for _ in range(length)]
-                    self.processed_dictionary[char][pos].add(word)
-
-        except sqlite3.Error as e:
-            logger.error(f"Database error while loading dictionary: {e}")
-            raise
-        finally:
-            conn.close()
+        # Process the dictionary to create dictionary of characters where for each character there will be up to length lists of words
+        self.processed_dictionary = {}
+        for word in self.dictionary:
+            for pos, char in enumerate(word):
+                if char not in self.processed_dictionary:
+                    self.processed_dictionary[char] = [set() for _ in range(length)]
+                self.processed_dictionary[char][pos].add(word)
 
     @lru_cache(maxsize=128)
     def _filter_characters(self, word, incorrect_position: tuple[int], correct_position: tuple[int], incorrect_letter: tuple[int]) -> set[str]:
@@ -98,35 +78,13 @@ class WordleHelper:
         return sorted(filtered)
 
 
-if __name__ == "__main__":
-    helper = WordleHelper(5)
+# Global instance
+_wordle_helper = None
 
-    import time
 
-    start_time = time.time()
-    filtered = helper.filter_characters(
-        {
-            "hello": {
-                "correct_position": [2],
-                "incorrect_letter": [1, 4],
-                "incorrect_position": [0, 3],
-            },
-        },
-    )
-    end_time = time.time()
-    print(f"Filtered words in {end_time - start_time:.4f} seconds:")
-
-    start_time = time.time()
-    filtered = helper.filter_characters(
-        {
-            "hello": {
-                "correct_position": [2],
-                "incorrect_letter": [1, 4],
-                "incorrect_position": [0, 3],
-            },
-        },
-    )
-    end_time = time.time()
-    print(f"Cached Filtered words in {end_time - start_time:.4f} seconds:")
-
-    print(filtered)
+def get_wordle_helper(length: int = 5) -> WordleHelper:
+    """Get or create WordleHelper instance"""
+    global _wordle_helper
+    if _wordle_helper is None:
+        _wordle_helper = WordleHelper(length)
+    return _wordle_helper

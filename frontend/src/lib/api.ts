@@ -38,7 +38,7 @@ function convertWordRowToFilterSpec(rows: WordRow[]): FilterSpec {
 
 export async function filterWords(rows: WordRow[]): Promise<string[]> {
     const filter_spec = convertWordRowToFilterSpec(rows);
-    const res = await fetch(`${API_BASE}/filter`, {
+    const res = await fetch(`${API_BASE}/filter/five_letter_words`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filter_spec })
