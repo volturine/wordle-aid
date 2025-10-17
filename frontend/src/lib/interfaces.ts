@@ -18,5 +18,5 @@ export interface DictionaryMeaning {
 
 export interface DictionaryEntry {
     word: string;
-    meanings: DictionaryMeaning[];
+    definitions: DictionaryMeaning[]; // Support alternative API format
 }

@@ -117,7 +117,7 @@
 					}}
 					title="Use this word">USE</button
 				>
-				<button class="close-button" onclick={onClose} title="Close">?</button>
+				<button class="close-button" onclick={onClose} title="Close">✕</button>
 			</div>
 
 			<h3 class="word-title">{selectedWord}</h3>
@@ -127,14 +127,20 @@
 			{:else if definitionError}
 				<p class="error-text">{definitionError}</p>
 			{:else if wordDefinition}
-				<div class="meanings-container">
-					{#each wordDefinition.meanings.slice(0, 4) as meaning}
-						<div class="meaning">
-							<h4 class="part-of-speech">{meaning.partOfSpeech}</h4>
-							<p class="example">"{meaning.definition}"</p>
-						</div>
-					{/each}
-				</div>
+				{#if wordDefinition.definitions}
+					<div class="meanings-container">
+						{#each wordDefinition.definitions.slice(0, 3) as meaning}
+							<div class="meaning">
+								<h4 class="part-of-speech">{meaning.partOfSpeech}</h4>
+								<div class="definition">
+									<p class="definition-text">{meaning.definition}</p>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			{:else}
+				<p class="error-text">No definition available</p>
 			{/if}
 		</div>
 	</div>
@@ -232,14 +238,6 @@
 		font-size: 1.25rem;
 	}
 
-	.phonetic {
-		color: var(--color-secondary);
-		font-style: italic;
-		margin: 0 0 1rem 0;
-		font-family: 'Courier New', monospace;
-		font-size: 1.1rem;
-	}
-
 	.loading-text {
 		color: var(--color-secondary);
 		font-style: italic;
@@ -277,15 +275,6 @@
 		color: var(--color-primary);
 		line-height: 1.5;
 		font-size: 0.95rem;
-	}
-
-	.example {
-		margin: 0;
-		color: var(--color-secondary);
-		font-style: italic;
-		font-size: 0.9rem;
-		padding-left: 0.5rem;
-		border-left: 2px solid var(--gray-border);
 	}
 
 	.error-text {

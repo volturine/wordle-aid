@@ -45,10 +45,14 @@ def _get_word_definition(word: str) -> dict:
     """
     Fetch word definition from dictionary API
     """
-    response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}", timeout=2)
+    headers = {
+        "x-rapidapi-key": os.environ.get("RAPID_API_KEY", ""),
+        "x-rapidapi-host": os.environ.get("RAPID_API_HOST", "wordsapiv1.p.rapidapi.com"),
+    }
+
+    response = requests.get(f"https://wordsapiv1.p.rapidapi.com/words/{word}/definitions", headers=headers)
     if not response.ok:
         raise HTTPException(status_code=response.status_code, detail="Failed to fetch word definition")
-
     return response.json()
 
 
@@ -70,20 +74,19 @@ def get_word_definition(word: str):
         raise
 
 
-# Serve static files from the 'build' directory
-static_files_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "build")
-app.mount("/_app", StaticFiles(directory=os.path.join(static_files_dir, "_app")), name="app")
+if os.getenv("PROD_MODE_ENABLED"):
+    static_files_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "build")
+    app.mount("/_app", StaticFiles(directory=os.path.join(static_files_dir, "_app")), name="app")
 
-
-@app.get("/{full_path:path}")
-def serve_static_or_index(full_path: str):
-    path = os.path.join(static_files_dir, full_path)
-    if os.path.isfile(path):
-        return FileResponse(path)
-    index_path = os.path.join(static_files_dir, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    raise HTTPException(status_code=404, detail="File not found")
+    @app.get("/{full_path:path}")
+    def serve_static_or_index(full_path: str):
+        path = os.path.join(static_files_dir, full_path)
+        if os.path.isfile(path):
+            return FileResponse(path)
+        index_path = os.path.join(static_files_dir, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="File not found")
 
 
 if __name__ == "__main__":
