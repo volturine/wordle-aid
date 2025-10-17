@@ -15,8 +15,14 @@ WORKDIR /home/wordle_helper
 # Frontend
 COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend/build
 
+# Create database directory for volume mount
 WORKDIR /home/wordle_helper/database
-COPY database/words.db ./
+RUN mkdir -p /home/wordle_helper/database && \
+    chown -R customuser:appgroup /home/wordle_helper/database && \
+    chmod -R u+rwX,g+rwX /home/wordle_helper/database
+
+# Copy initial database file (will be used if volume is empty)
+COPY database/words.db ./words.db
 
 # backend
 WORKDIR /home/wordle_helper/backend
