@@ -8,7 +8,7 @@ RUN npm install && npm run build
 FROM python:3.11-slim
 
 # Create a custom user with UID 1234 and GID 1234
-RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
+# RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
 
 WORKDIR /home/wordle_helper
 
@@ -17,9 +17,6 @@ COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend/build
 
 # Create database directory for volume mount
 WORKDIR /home/wordle_helper/database
-RUN mkdir -p /home/wordle_helper/database && \
-    chown -R customuser:appgroup /home/wordle_helper/database && \
-    chmod -R u+rwX,g+rwX /home/wordle_helper/database
 
 # Copy initial database file (will be used if volume is empty)
 COPY database/words.db ./words.db
@@ -36,11 +33,11 @@ COPY backend/api/ ./api/
 COPY backend/modules/ ./modules/
 COPY backend/main.py ./main.py
 
-# Fix ownership and permissions for all files
-RUN chown -R customuser:appgroup /home/wordle_helper
-RUN chmod -R u+rwX,g+rwX /home/wordle_helper
+# # Fix ownership and permissions for all files
+# RUN chown -R customuser:appgroup /home/wordle_helper
+# RUN chmod -R u+rwX,g+rwX /home/wordle_helper
 
-USER customuser
+# USER customuser
 
 EXPOSE 8000 3000
 

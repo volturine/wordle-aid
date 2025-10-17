@@ -39,7 +39,7 @@ app.include_router(api_router)
 
 # Serve static files in production
 if os.getenv("PROD_MODE_ENABLED"):
-    static_files_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "build")
+    static_files_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "build")
     app.mount("/_app", StaticFiles(directory=os.path.join(static_files_dir, "_app")), name="app")
 
     @app.get("/{full_path:path}")
