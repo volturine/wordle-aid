@@ -12,7 +12,6 @@ services:
       - 9193:8000
     environment:
       PROD_MODE_ENABLED: true
-      API_BASE: http://localhost:8000/api
       RAPID_API_KEY: "${RAPID_API_KEY}"
       RAPID_API_HOST: "${RAPID_API_HOST}"
       DB_ROOT_PATH: /home/wordle_helper/database

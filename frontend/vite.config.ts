@@ -59,5 +59,8 @@ export default {
 			"wordle-aid.com",
 			"dev.wordle-aid.com"
 		],
+		proxy: {
+			'/api': 'http://localhost:8000'
+		}
 	},
 };

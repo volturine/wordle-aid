@@ -1,2 +1,2 @@
-const isDevModeEnabled = import.meta.env.DEV_MODE_ENABLED === 'true';
-export const API_BASE = isDevModeEnabled ? "http://localhost:8000/api" : "/api";
+// Always use relative paths - works in both dev and prod
+export const API_BASE = "/api";
