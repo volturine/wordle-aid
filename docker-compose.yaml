@@ -1,6 +1,9 @@
 services:
   wordle-aid:
+    restart: unless-stopped
     container_name: wordle-aid
+    stdin_open: true # equivalent to -i
+    tty: true # equivalent to -t
     image: gitea.kripso-world.com/kripso/wordle_aid:latest
     privileged: false
     user: 1234:1234
@@ -8,8 +11,12 @@ services:
       - 9192:3000
       - 9193:8000
     environment:
-      - NODE_ENV=production
-      - PUBLIC_API_BASE=http://192.168.1.201:9193
-    restart: unless-stopped
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
+      PROD_MODE_ENABLED: true
+      API_BASE: http://localhost:8000/api
+      RAPID_API_KEY: "${RAPID_API_KEY}"
+      RAPID_API_HOST: "${RAPID_API_HOST}"
+      DB_ROOT_PATH: /home/wordle_helper/database
+    volumes:
+      - database:/home/wordle_helper/database
+    # labels:
+    #   - com.centurylinklabs.watchtower.enable=true

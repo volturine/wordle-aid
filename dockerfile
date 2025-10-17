@@ -17,7 +17,6 @@ COPY --from=frontend-build /frontend/build /home/wordle_helper/frontend/build
 
 WORKDIR /home/wordle_helper/database
 COPY database/words.db ./
-COPY database/word_definitions.db ./
 
 # backend
 WORKDIR /home/wordle_helper/backend

@@ -9,11 +9,11 @@ import logging
 from pathlib import Path
 
 # Get database path from environment variable
-WORD_DEFINITIONS_DB_PATH_STR = os.getenv("WORD_DEFINITIONS_DB_PATH")
-if not WORD_DEFINITIONS_DB_PATH_STR:
-    raise EnvironmentError("WORD_DEFINITIONS_DB_PATH environment variable is not set. Please set it to the path of your word_definitions.db file.")
+DB_ROOT_PATH = os.getenv("DB_ROOT_PATH")
+if not DB_ROOT_PATH:
+    raise EnvironmentError("DB_ROOT_PATH environment variable is not set. Please set it to the root path of your database files.")
 
-WORD_DEFINITIONS_DB_PATH = Path(WORD_DEFINITIONS_DB_PATH_STR) / "word_definitions.db"
+WORD_DEFINITIONS_DB_PATH = Path(DB_ROOT_PATH) / "word_definitions.db"
 
 logger = logging.getLogger(__name__)
 

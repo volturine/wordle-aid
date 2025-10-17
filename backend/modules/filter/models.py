@@ -8,11 +8,11 @@ import logging
 from pathlib import Path
 
 # Get database path from environment variable
-DATABASE_PATH_STR = os.getenv("WORDS_DB_PATH")
-if not DATABASE_PATH_STR:
-    raise EnvironmentError("WORDS_DB_PATH environment variable is not set. Please set it to the path of your words.db file.")
+DB_ROOT_PATH = os.getenv("DB_ROOT_PATH")
+if not DB_ROOT_PATH:
+    raise EnvironmentError("DB_ROOT_PATH environment variable is not set. Please set it to the root path of your database files.")
 
-DATABASE_PATH = Path(DATABASE_PATH_STR) / "words.db"
+DATABASE_PATH = Path(DB_ROOT_PATH) / "words.db"
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def load_words_by_length(length: int) -> set[str]:
     # Check if database exists
     if not DATABASE_PATH.exists():
         logger.error(f"Database not found at {DATABASE_PATH}")
-        raise FileNotFoundError(f"Database not found at {DATABASE_PATH}. Please ensure WORDS_DB_PATH environment variable points to a valid database file.")
+        raise FileNotFoundError(f"Database not found at {DATABASE_PATH}. Please ensure DB_ROOT_PATH environment variable points to a valid database file.")
 
     # Load words from SQLite database
     conn = sqlite3.connect(DATABASE_PATH)
