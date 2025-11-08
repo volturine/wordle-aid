@@ -60,7 +60,14 @@
 			value: char.toLowerCase(),
 			state: CharacterState.INCORRECT
 		}));
-
+		// if character state is correct position, keep
+		wordRows.forEach((row, _) => {
+			row.forEach((char, charIdx) => {
+				if (char.value == newRow[charIdx].value) {
+					newRow[charIdx].state = char.state;
+				}
+			});
+		});
 		// if row is empty, replace it
 		const emptyRowIdx = wordRows.findIndex((row) => row.every((char) => !char.value));
 		if (emptyRowIdx !== -1) {
@@ -77,17 +84,23 @@
 		const value = handleSingleCharInput(input.value);
 		wordRows[rowIdx][charIdx].value = value;
 		input.value = value;
-		console.log(`Row ${rowIdx}, Char ${charIdx} updated to: ${value}`);
 		// Move focus to next input if value was entered
 		if (value) {
-			console.log(`Moving focus to next character in row ${rowIdx}`);
 			const nextCharIdx = charIdx + 1;
-			console.log(`Next character index: ${nextCharIdx}`);
 			if (nextCharIdx < 5) {
 				const nextInput = document.querySelector(
 					`input[data-row="${rowIdx}"][data-char="${nextCharIdx}"]`
 				) as HTMLInputElement;
 				if (nextInput) nextInput.focus();
+			} else {
+				// if character state is correct position, keep
+				wordRows.forEach((row, _) => {
+					row.forEach((char, charIdx) => {
+						if (char.value == wordRows[rowIdx][charIdx].value) {
+							wordRows[rowIdx][charIdx].state = char.state;
+						}
+					});
+				});
 			}
 		}
 	}
