@@ -55,7 +55,7 @@
 	}
 
 	function handleUseWord(word: string) {
-		input_state = CharacterState.WRITING;
+		input_state = CharacterState.INCORRECT;
 		const newRow = word.split('').map((char) => ({
 			value: char.toLowerCase(),
 			state: CharacterState.INCORRECT
