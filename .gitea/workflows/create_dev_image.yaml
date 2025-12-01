@@ -38,7 +38,7 @@ jobs:
           no-cache: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.ref_name }}
+            gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.head_ref || gitea.ref_name }}
             gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }}
 
       - name: Install jq
@@ -47,7 +47,7 @@ jobs:
       - name: Inspect pushed image digests
         id: inspect
         run: |
-          BRANCH_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.ref_name }} --format '{{json .}}' | jq -r '.manifest.digest')
+          BRANCH_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.head_ref || gitea.ref_name }} --format '{{json .}}' | jq -r '.manifest.digest')
           SHA_DIGEST=$(docker buildx imagetools inspect gitea.kripso-world.com/${{ gitea.repository }}:${{ gitea.sha }} --format '{{json .}}' | jq -r '.manifest.digest')
 
           echo "Branch digest: $BRANCH_DIGEST"

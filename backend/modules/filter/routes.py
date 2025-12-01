@@ -3,9 +3,10 @@ API routes for word filtering
 """
 
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 
 from . import service
+from .schemas import WordFilterRequest
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +14,14 @@ router = APIRouter(tags=["filter"])
 
 
 @router.post("/five_letter_words")
-async def filter_words(request: Request):
+async def filter_words(request: WordFilterRequest) -> list[str]:
     """
-    Filter words based on Wordle game state
+    Filter words based on Wordle game state.
+
+    Submit guessed words with their color feedback to get matching words.
     """
-    data = await request.json()
-    logger.info(f"Received filter request with data: {data}")
-    filter_spec = data.get("filter_spec", {})
+    logger.info(f"Received filter request: {request.json()}")
+
+
     helper = service.get_wordle_helper(5)
-    filtered = helper.filter_characters(filter_spec)
-    return list(filtered)
+    return helper.filter_characters(request.filter_spec)

@@ -7,8 +7,8 @@ RUN npm install && npm run build
 # --- Backend build stage ---
 FROM python:3.11-slim
 
-# Create a custom user with UID 1234 and GID 1234
-# RUN addgroup --gid 1234 appgroup && adduser --uid 1234 --gid 1234 --disabled-password --gecos "" customuser 
+# Create a custom user with UID 1000 and GID 1000
+RUN addgroup --gid 1000 appgroup && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" appuser
 
 WORKDIR /home/wordle_helper
 
@@ -33,13 +33,13 @@ COPY backend/api/ ./api/
 COPY backend/modules/ ./modules/
 COPY backend/main.py ./main.py
 
-# # Fix ownership and permissions for all files
-# RUN chown -R customuser:appgroup /home/wordle_helper
-# RUN chmod -R u+rwX,g+rwX /home/wordle_helper
+# Fix ownership and permissions for all files
+RUN chown -R appuser:appgroup /home/wordle_helper
 
-# USER customuser
+USER appuser
 
-EXPOSE 8000 3000
+EXPOSE 8000
+VOLUME /home/wordle_helper/database
 
 WORKDIR /home/wordle_helper/backend
 CMD ["uv", "run", "main.py"]
