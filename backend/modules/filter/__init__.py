@@ -1,3 +1,2 @@
-"""
-Filter module for word filtering
+"""Filter module for word filtering
 """

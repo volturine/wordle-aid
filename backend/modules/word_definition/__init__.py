@@ -1,3 +1,2 @@
-"""
-Words module
+"""Words module
 """

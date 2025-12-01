@@ -1,3 +1,2 @@
-"""
-Modules package
+"""Modules package
 """
