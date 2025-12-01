@@ -1,25 +1,21 @@
-"""
-Database models for word definitions
-"""
-
-import os
-import sqlite3
 import json
 import logging
+import os
+import sqlite3
 from pathlib import Path
 
 # Get database path from environment variable
-DB_ROOT_PATH = os.getenv("DB_ROOT_PATH")
+DB_ROOT_PATH = os.getenv('DB_ROOT_PATH')
 if not DB_ROOT_PATH:
-    raise EnvironmentError("DB_ROOT_PATH environment variable is not set. Please set it to the root path of your database files.")
+    raise OSError('DB_ROOT_PATH environment variable is not set. Please set it to the root path of your database files.')
 
-WORD_DEFINITIONS_DB_PATH = Path(DB_ROOT_PATH) / "word_definitions.db"
+WORD_DEFINITIONS_DB_PATH = Path(DB_ROOT_PATH) / 'word_definitions.db'
 
 logger = logging.getLogger(__name__)
 
 
 def init_db():
-    """Initialize the word definitions database"""
+    """Initialize the word definitions database."""
     conn = sqlite3.connect(WORD_DEFINITIONS_DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -34,11 +30,11 @@ def init_db():
 
 
 def get_cached_definition(word: str):
-    """Get definition from SQLite cache"""
+    """Get definition from SQLite cache."""
     try:
         conn = sqlite3.connect(WORD_DEFINITIONS_DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT definition_data FROM definitions WHERE word = ?", (word.lower(),))
+        cursor.execute('SELECT definition_data FROM definitions WHERE word = ?', (word.lower(),))
         result = cursor.fetchone()
         conn.close()
 
@@ -51,13 +47,16 @@ def get_cached_definition(word: str):
 
 
 def store_definition(word: str, definition_data: dict):
-    """Store definition in SQLite cache"""
+    """Store definition in SQLite cache."""
     try:
         conn = sqlite3.connect(WORD_DEFINITIONS_DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("INSERT OR REPLACE INTO definitions (word, definition_data) VALUES (?, ?)", (word.lower(), json.dumps(definition_data)))
+        cursor.execute(
+            'INSERT OR REPLACE INTO definitions (word, definition_data) VALUES (?, ?)',
+            (word.lower(), json.dumps(definition_data)),
+        )
         conn.commit()
         conn.close()
-        logger.info(f"Cached definition for word: {word}")
+        logger.info(f'Cached definition for word: {word}')
     except Exception as e:
         logger.error(f"Error caching definition for '{word}': {e}")

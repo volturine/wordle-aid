@@ -1,4 +1,32 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:venv",
-    "python-envs.pythonProjects": []
+    // BasedPyright settings
+    "basedpyright.analysis.diagnosticMode": "workspace",
+    "basedpyright.analysis.ignore": [
+        "reportAny"
+    ],
+    "basedpyright.analysis.typeCheckingMode": "basic",
+    "basedpyright.analysis.autoImportCompletions": true,
+    "basedpyright.analysis.extraPaths": [
+        "backend"
+    ],
+    "basedpyright.analysis.exclude": [
+        "**/backend/.venv/",
+        "**/backend/__pycache__/",
+        "**/backend/.pytest_cache/"
+    ],
+    // Other Python settings
+    "editor.formatOnSave": true,
+    "ruff.format.backend": "uv",
+    "files.exclude": {
+        "**/**__pycache__": true,
+        "**/**.egg-info": true,
+        "**/**.pytest_cache": true,
+        "**/node_modules": true
+    },
+    "python.defaultInterpreterPath": "backend/.venv/bin/python",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "backend/tests"
+    ]
 }

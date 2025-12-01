@@ -1,9 +1,6 @@
-"""
-Business logic for word filtering using WordleHelper
-"""
-
-from functools import lru_cache
 import logging
+from collections import Counter
+from functools import lru_cache
 
 from .models import load_words_by_length
 
@@ -12,12 +9,12 @@ logger = logging.getLogger(__name__)
 
 class WordleHelper:
     def __init__(self, length: int = 5):
-        logger.info(f"Initializing WordleHelper for {length}-letter words")
+        logger.info(f'Initializing WordleHelper for {length}-letter words')
         self.length = length
         self._set_dictionary(length=length)
 
     def _set_dictionary(self, length: int = 5) -> None:
-        """Load dictionary from database using models"""
+        """Load dictionary from database using models."""
         # Load words from database via models
         words = load_words_by_length(length)
         self.dictionary = words
@@ -30,7 +27,7 @@ class WordleHelper:
                     self.processed_dictionary[char] = [set() for _ in range(length)]
                 self.processed_dictionary[char][pos].add(word)
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=128)  # noqa: B019
     def _filter_characters(
         self,
         guess: str,
@@ -38,8 +35,7 @@ class WordleHelper:
         correct_position: tuple[int],
         incorrect_letter: tuple[int],
     ) -> set[str]:
-        """
-        Filter words based on Wordle feedback.
+        """Filter words based on Wordle feedback.
 
         Args:
             guess: The guessed word
@@ -53,39 +49,54 @@ class WordleHelper:
         green = {pos: guess[pos] for pos in correct_position}
         yellow = {pos: guess[pos] for pos in incorrect_position}
 
-        # Letters confirmed to exist in the word
-        confirmed_letters = set(green.values()) | set(yellow.values())
+        # Count confirmed instances of each letter (Green + Yellow)
+        confirmed_counts = Counter()
+        for letter in green.values():
+            confirmed_counts[letter] += 1
+        for letter in yellow.values():
+            confirmed_counts[letter] += 1
 
-        # Grey letters not confirmed elsewhere = completely absent from word
-        absent_letters = {guess[pos] for pos in incorrect_letter if guess[pos] not in confirmed_letters}
-
-        # Grey positions for confirmed letters (e.g., A is green at pos 3, grey at pos 1)
+        # Determine max counts allowed and excluded positions
+        max_counts = {}
         excluded_at = {}
+
         for pos in incorrect_letter:
             letter = guess[pos]
-            if letter in confirmed_letters:
+            if letter in confirmed_counts:
+                # It's a confirmed letter, but this specific instance is Grey.
+                # This implies the target has exactly confirmed_counts[letter] of this letter.
+                max_counts[letter] = confirmed_counts[letter]
+
+                # Also, this letter cannot be at this position
                 excluded_at.setdefault(letter, set()).add(pos)
+            else:
+                # Not confirmed anywhere. Count is 0.
+                max_counts[letter] = 0
 
         def matches(candidate: str) -> bool:
             # Green: letter must be at exact position
             if any(candidate[pos] != letter for pos, letter in green.items()):
                 return False
 
-            # Absent: letter must not appear anywhere
-            if any(letter in candidate for letter in absent_letters):
-                return False
+            cand_counts = Counter(candidate)
+
+            # Check min counts (confirmed letters must exist at least that many times)
+            for letter, min_count in confirmed_counts.items():
+                if cand_counts[letter] < min_count:
+                    return False
+
+            # Check max counts
+            for letter, max_count in max_counts.items():
+                if cand_counts[letter] > max_count:
+                    return False
 
             # Yellow: letter must exist but NOT at this position
             for pos, letter in yellow.items():
-                if candidate[pos] == letter or letter not in candidate:
+                if candidate[pos] == letter:
                     return False
 
             # Excluded positions: confirmed letter must not be at grey position
-            for letter, positions in excluded_at.items():
-                if any(candidate[pos] == letter for pos in positions):
-                    return False
-
-            return True
+            return all(not any(candidate[pos] == letter for pos in positions) for letter, positions in excluded_at.items())
 
         # Fast initial filter using pre-indexed green letters
         if green:
@@ -99,8 +110,7 @@ class WordleHelper:
         return {word for word in candidates if matches(word)}
 
     def filter_characters(self, filter_spec: dict) -> list[str]:
-        """
-        Filter words based on multiple guesses and their feedback.
+        """Filter words based on multiple guesses and their feedback.
 
         Args:
             filter_spec: Dict mapping guessed words to their GuessFilter objects:
@@ -130,7 +140,7 @@ _wordle_helper = None
 
 
 def get_wordle_helper(length: int = 5) -> WordleHelper:
-    """Get or create WordleHelper instance"""
+    """Get or create WordleHelper instance."""
     global _wordle_helper
     if _wordle_helper is None:
         _wordle_helper = WordleHelper(length)
