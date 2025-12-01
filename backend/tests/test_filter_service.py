@@ -1,5 +1,4 @@
 import sqlite3
-from unittest.mock import patch
 
 import pytest
 
@@ -8,7 +7,7 @@ from modules.filter.service import WordleHelper
 
 # Define a fixture to create a temporary database
 @pytest.fixture
-def test_db(tmp_path):
+def test_db(tmp_path, monkeypatch):
     # Create a temporary directory for the database
     db_dir = tmp_path / 'database'
     db_dir.mkdir()
@@ -42,10 +41,11 @@ def test_db(tmp_path):
     conn.commit()
     conn.close()
 
-    # Patch the DATABASE_PATH in the models module to point to our temp DB
+    # Set the DB_ROOT_PATH environment variable to the temp dir
     # This ensures load_words_by_length uses our test database instead of the real one
-    with patch('modules.filter.models.DATABASE_PATH', db_path):
-        yield db_dir
+    monkeypatch.setenv('DB_ROOT_PATH', str(db_dir))
+
+    yield db_dir
 
 
 def test_filter_ether_case(test_db):

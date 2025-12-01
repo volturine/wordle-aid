@@ -3,14 +3,15 @@ import os
 import sqlite3
 from pathlib import Path
 
-# Get database path from environment variable
-DB_ROOT_PATH = os.getenv('DB_ROOT_PATH') or '/home/kripso/workspace/wordle_aid/database'
-if not DB_ROOT_PATH:
-    raise OSError('DB_ROOT_PATH environment variable is not set. Please set it to the root path of your database files.')
-
-DATABASE_PATH = Path(DB_ROOT_PATH) / 'words.db'
-
 logger = logging.getLogger(__name__)
+
+
+def get_database_path() -> Path:
+    """Get the database path from the environment variable."""
+    db_root_path = os.getenv('DB_ROOT_PATH')
+    if not db_root_path:
+        raise OSError('DB_ROOT_PATH environment variable is not set. Please set it to the root path of your database files.')
+    return Path(db_root_path) / 'words.db'
 
 
 def load_words_by_length(length: int) -> set[str]:
@@ -28,13 +29,15 @@ def load_words_by_length(length: int) -> set[str]:
     """
     logger.info(f'Loading dictionary for {length}-letter words from SQLite database')
 
+    database_path = get_database_path()
+
     # Check if database exists
-    if not DATABASE_PATH.exists():
-        logger.error(f'Database not found at {DATABASE_PATH}')
-        raise FileNotFoundError(f'Database not found at {DATABASE_PATH}. Please ensure DB_ROOT_PATH environment variable points to a valid database file.')  # noqa: E501
+    if not database_path.exists():
+        logger.error(f'Database not found at {database_path}')
+        raise FileNotFoundError(f'Database not found at {database_path}. Please ensure DB_ROOT_PATH environment variable points to a valid database file.')  # noqa: E501
 
     # Load words from SQLite database
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
 
     try:
