@@ -51,7 +51,10 @@ def store_definition(word: str, definition_data: dict):
     try:
         conn = sqlite3.connect(WORD_DEFINITIONS_DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('INSERT OR REPLACE INTO definitions (word, definition_data) VALUES (?, ?)', (word.lower(), json.dumps(definition_data)))
+        cursor.execute(
+            'INSERT OR REPLACE INTO definitions (word, definition_data) VALUES (?, ?)',
+            (word.lower(), json.dumps(definition_data)),
+        )
         conn.commit()
         conn.close()
         logger.info(f'Cached definition for word: {word}')

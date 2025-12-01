@@ -31,7 +31,7 @@ def load_words_by_length(length: int) -> set[str]:
     # Check if database exists
     if not DATABASE_PATH.exists():
         logger.error(f'Database not found at {DATABASE_PATH}')
-        raise FileNotFoundError(f'Database not found at {DATABASE_PATH}. Please ensure DB_ROOT_PATH environment variable points to a valid database file.')
+        raise FileNotFoundError(f'Database not found at {DATABASE_PATH}. Please ensure DB_ROOT_PATH environment variable points to a valid database file.')  # noqa: E501
 
     # Load words from SQLite database
     conn = sqlite3.connect(DATABASE_PATH)
