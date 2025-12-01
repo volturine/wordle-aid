@@ -98,18 +98,18 @@ class WordleHelper:
 
         return {word for word in candidates if matches(word)}
 
-    def filter_characters(self, filter_spec: dict[str, dict[str, list[int]]]) -> list[str]:
+    def filter_characters(self, filter_spec: dict) -> list[str]:
         """
         Filter words based on multiple guesses and their feedback.
 
         Args:
-            filter_spec: Dict mapping guessed words to their color feedback:
+            filter_spec: Dict mapping guessed words to their GuessFilter objects:
                 {
-                    "LEAST": {
-                        "green_positions": [2, 4],
-                        "yellow_positions": [],
-                        "grey_positions": [0, 1, 3]
-                    }
+                    "LEAST": GuessFilter(
+                        green_positions=[2, 4],
+                        yellow_positions=[],
+                        grey_positions=[0, 1, 3]
+                    )
                 }
         """
         filtered = set(self.dictionary)
@@ -117,9 +117,9 @@ class WordleHelper:
         for guess, feedback in filter_spec.items():
             filtered &= self._filter_characters(
                 guess,
-                yellow_positions=tuple(feedback.get("yellow_positions", ())),
-                green_positions=tuple(feedback.get("green_positions", ())),
-                grey_positions=tuple(feedback.get("grey_positions", ())),
+                yellow_positions=tuple(feedback.yellow_positions),
+                green_positions=tuple(feedback.green_positions),
+                grey_positions=tuple(feedback.grey_positions),
             )
 
         return sorted(filtered)

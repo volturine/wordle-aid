@@ -44,7 +44,7 @@ def load_words_by_length(length: int) -> set[str]:
 
     try:
         # Get words of specified length
-        cursor.execute(f"SELECT word FROM words WHERE length = {length}")
+        cursor.execute("SELECT word FROM words WHERE length = ?", (length,))
         words = [row[0] for row in cursor.fetchall()]
 
         logger.info(f"Loaded {len(words)} words of length {length}")

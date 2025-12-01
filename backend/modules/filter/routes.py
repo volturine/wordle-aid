@@ -20,13 +20,8 @@ async def filter_words(request: WordFilterRequest) -> list[str]:
 
     Submit guessed words with their color feedback to get matching words.
     """
-    logger.info(f"Received filter request: {request.root}")
+    logger.info(f"Received filter request: {request.json()}")
 
-    # Convert Pydantic models to dicts for the service
-    filter_spec = {
-        guess: feedback.model_dump()
-        for guess, feedback in request.root.items()
-    }
 
     helper = service.get_wordle_helper(5)
-    return helper.filter_characters(filter_spec)
+    return helper.filter_characters(request.filter_spec)
