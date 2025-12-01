@@ -10,18 +10,18 @@ class GuessFilter(BaseModel):
     Filter specification for a single guessed word.
 
     Each list contains position indices (0-4) indicating the feedback color:
-    - green_positions: Letter is correct at this position
-    - yellow_positions: Letter exists in word but wrong position
-    - grey_positions: Letter is not in word (or not at this position if also green/yellow)
+    - correct_position: Letter is correct at this position
+    - incorrect_position: Letter exists in word but wrong position
+    - incorrect_letter: Letter is not in word (or not at this position if also correct/incorrect position)
     """
 
-    green_positions: list[int] = Field(
+    correct_position: list[int] = Field(
         default=[], description="Positions where letter is correct (green)"
     )
-    yellow_positions: list[int] = Field(
+    incorrect_position: list[int] = Field(
         default=[], description="Positions where letter exists but wrong spot (yellow)"
     )
-    grey_positions: list[int] = Field(
+    incorrect_letter: list[int] = Field(
         default=[], description="Positions where letter is not in word (grey)"
     )
 
@@ -29,9 +29,9 @@ class GuessFilter(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "green_positions": [2, 4],
-                    "yellow_positions": [],
-                    "grey_positions": [0, 1, 3],
+                    "correct_position": [2, 4],
+                    "incorrect_position": [],
+                    "incorrect_letter": [0, 1, 3],
                 }
             ]
         }
@@ -55,14 +55,14 @@ class WordFilterRequest(BaseModel):
                 {
                     "filter_spec": {
                         "LEAST": {
-                            "green_positions": [2, 4],
-                            "yellow_positions": [],
-                            "grey_positions": [0, 1, 3],
+                            "correct_position": [2, 4],
+                            "incorrect_position": [],
+                            "incorrect_letter": [0, 1, 3],
                         },
                         "ADAPT": {
-                            "green_positions": [2, 4],
-                            "yellow_positions": [],
-                            "grey_positions": [0, 1, 3],
+                            "correct_position": [2, 4],
+                            "incorrect_position": [],
+                            "incorrect_letter": [0, 1, 3],
                         },
                     }
                 }

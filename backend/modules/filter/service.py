@@ -34,34 +34,34 @@ class WordleHelper:
     def _filter_characters(
         self,
         guess: str,
-        yellow_positions: tuple[int],
-        green_positions: tuple[int],
-        grey_positions: tuple[int],
+        incorrect_position: tuple[int],
+        correct_position: tuple[int],
+        incorrect_letter: tuple[int],
     ) -> set[str]:
         """
         Filter words based on Wordle feedback.
 
         Args:
             guess: The guessed word
-            yellow_positions: Positions where letter is in word but wrong spot
-            green_positions: Positions where letter is correct
-            grey_positions: Positions where letter is not in word (or not at this position)
+            incorrect_position: Positions where letter is in word but wrong spot
+            correct_position: Positions where letter is correct
+            incorrect_letter: Positions where letter is not in word (or not at this position)
         """
         guess = guess.lower()
 
         # Build constraint maps
-        green = {pos: guess[pos] for pos in green_positions}
-        yellow = {pos: guess[pos] for pos in yellow_positions}
+        green = {pos: guess[pos] for pos in correct_position}
+        yellow = {pos: guess[pos] for pos in incorrect_position}
 
         # Letters confirmed to exist in the word
         confirmed_letters = set(green.values()) | set(yellow.values())
 
         # Grey letters not confirmed elsewhere = completely absent from word
-        absent_letters = {guess[pos] for pos in grey_positions if guess[pos] not in confirmed_letters}
+        absent_letters = {guess[pos] for pos in incorrect_letter if guess[pos] not in confirmed_letters}
 
         # Grey positions for confirmed letters (e.g., A is green at pos 3, grey at pos 1)
         excluded_at = {}
-        for pos in grey_positions:
+        for pos in incorrect_letter:
             letter = guess[pos]
             if letter in confirmed_letters:
                 excluded_at.setdefault(letter, set()).add(pos)
@@ -106,9 +106,9 @@ class WordleHelper:
             filter_spec: Dict mapping guessed words to their GuessFilter objects:
                 {
                     "LEAST": GuessFilter(
-                        green_positions=[2, 4],
-                        yellow_positions=[],
-                        grey_positions=[0, 1, 3]
+                        correct_position=[2, 4],
+                        incorrect_position=[],
+                        incorrect_letter=[0, 1, 3]
                     )
                 }
         """
@@ -117,9 +117,9 @@ class WordleHelper:
         for guess, feedback in filter_spec.items():
             filtered &= self._filter_characters(
                 guess,
-                yellow_positions=tuple(feedback.yellow_positions),
-                green_positions=tuple(feedback.green_positions),
-                grey_positions=tuple(feedback.grey_positions),
+                incorrect_position=tuple(feedback.incorrect_position),
+                correct_position=tuple(feedback.correct_position),
+                incorrect_letter=tuple(feedback.incorrect_letter),
             )
 
         return sorted(filtered)
