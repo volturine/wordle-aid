@@ -8,8 +8,7 @@ export default {
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
-			fallback: 'index.html', // Enable SPA fallback for better PWA support
-			fallback: '404.html', // This line is important
+			fallback: '404.html',
 			precompress: false,
 			strict: true
 		}),

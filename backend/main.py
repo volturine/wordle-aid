@@ -34,7 +34,8 @@ app.add_middleware(
 app.include_router(api_router)
 
 # Serve static files in production
-if os.getenv('PROD_MODE_ENABLED'):
+
+if os.getenv('PROD_MODE_ENABLED', 'false').lower() in ['true', '1', 'yes']:
     static_files_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build')
     app.mount('/_app', StaticFiles(directory=os.path.join(static_files_dir, '_app')), name='app')
 
