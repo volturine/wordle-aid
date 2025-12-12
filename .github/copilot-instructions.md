@@ -240,6 +240,8 @@ Documentation
 
 Refer to Svelte, SvelteKit, and Paraglide.js documentation for detailed information on components, internationalization, and best practices.
 
+For all python use 'uv' packadge manager.
+
 Backend (FastAPI) Guidelines — aligned with existing structure
 
 - You are an expert in Python, FastAPI, and scalable API development.
