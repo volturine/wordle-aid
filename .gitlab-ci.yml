@@ -1,0 +1,62 @@
+stages:
+  - test
+  - build
+
+# ------------------------------------------------------------------------------
+# Backend Tests
+# ------------------------------------------------------------------------------
+backend-tests:
+  stage: test
+  image: python:3.11
+  before_script:
+    - pip install uv
+    - cd backend
+  script:
+    - uv run pytest tests
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH =~ /^dev/
+
+# ------------------------------------------------------------------------------
+# Build & Push Docker Image (master/main branch) - Production
+# ------------------------------------------------------------------------------
+# Runs on: Direct commits to master/main only
+build-production:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
+    entrypoint: [""]
+  script:
+    - |
+      /kaniko/executor \
+        --context "${CI_PROJECT_DIR}" \
+        --dockerfile "${CI_PROJECT_DIR}/dockerfile" \
+        --destination "${CI_REGISTRY_IMAGE}:latest" \
+        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+
+# ------------------------------------------------------------------------------
+# Build & Push Docker Image (merge requests) - Development/Preview
+# ------------------------------------------------------------------------------
+# Runs on: Merge requests targeting master/main (manual trigger)
+build-mr:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
+    entrypoint: [""]
+  script:
+    - |
+      BRANCH_TAG=$(echo "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" | sed 's|/|-|g')
+      /kaniko/executor \
+        --context "${CI_PROJECT_DIR}" \
+        --dockerfile "${CI_PROJECT_DIR}/dockerfile" \
+        --destination "${CI_REGISTRY_IMAGE}:PR-${CI_MERGE_REQUEST_IID}" \
+        --destination "${CI_REGISTRY_IMAGE}:${BRANCH_TAG}" \
+        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
+      when: manual
+      allow_failure: true
+
