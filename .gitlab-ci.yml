@@ -58,11 +58,12 @@ create-manifest-prod:
   script:
     - buildah pull "docker://${CI_REGISTRY_IMAGE}:amd64"
     - buildah pull "docker://${CI_REGISTRY_IMAGE}:arm64"
-    - buildah manifest create "$FQ_IMAGE_NAME"
+    - buildah manifest rm "$FQ_IMAGE_NAME" || true
+    - buildah manifest create --amend "$FQ_IMAGE_NAME"
     - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:amd64"
     - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:arm64"
-    - buildah manifest push --all "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:latest"
-    - buildah manifest push --all "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - buildah manifest push --all --format docker "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:latest"
+    - buildah manifest push --all --format docker "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
 
 # ------------------------------------------------------------------------------
 # Build & Push Multi-Arch Image (merge requests) - Development/Preview
@@ -99,10 +100,11 @@ create-manifest-mr:
   script:
     - MR_BASE_TAG="pr-${CI_MERGE_REQUEST_IID}"
     - BRANCH_TAG=$(echo "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" | sed 's|/|-|g')
-    - buildah manifest create "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
+    - buildah manifest rm "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" || true
+    - buildah manifest create --amend "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
     - buildah manifest add "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}-amd64"
     - buildah manifest add "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}-arm64"
-    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
-    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${BRANCH_TAG}"
-    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - buildah manifest push --all --format docker "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
+    - buildah manifest push --all --format docker "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${BRANCH_TAG}"
+    - buildah manifest push --all --format docker "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
 
