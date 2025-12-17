@@ -59,7 +59,7 @@ create-manifest-prod:
     - buildah manifest create "$FQ_IMAGE_NAME"
     - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:amd64"
     - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:arm64"
-    - buildah manifest push --all "docker://${CI_REGISTRY_IMAGE}:latest"
+    - buildah manifest push --all "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:latest"
     - buildah manifest push --all "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
 
 # ------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ create-manifest-mr:
     - buildah manifest create "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
     - buildah manifest add "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}-amd64"
     - buildah manifest add "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}-arm64"
-    - buildah manifest push --all "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}"
-    - buildah manifest push --all "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${BRANCH_TAG}"
-    - buildah manifest push --all "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
+    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${BRANCH_TAG}"
+    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
 
