@@ -56,6 +56,8 @@ create-manifest-prod:
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
   script:
+    - buildah pull "docker://${CI_REGISTRY_IMAGE}:amd64"
+    - buildah pull "docker://${CI_REGISTRY_IMAGE}:arm64"
     - buildah manifest create "$FQ_IMAGE_NAME"
     - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:amd64"
     - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:arm64"
