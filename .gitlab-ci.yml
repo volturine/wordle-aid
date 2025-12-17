@@ -5,6 +5,8 @@ stages:
 variables:
   STORAGE_DRIVER: vfs
   BUILDAH_FORMAT: docker
+  BUILDAH_ISOLATION: chroot
+  BUILDAH_LAYERS: "true"
   DOCKERFILE_PATH: "${CI_PROJECT_DIR}/dockerfile"
   FQ_IMAGE_NAME: "$CI_REGISTRY_IMAGE:latest"
 
