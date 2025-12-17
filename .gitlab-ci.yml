@@ -2,6 +2,17 @@ stages:
   - test
   - build
 
+variables:
+  STORAGE_DRIVER: vfs
+  BUILDAH_FORMAT: docker
+  DOCKERFILE_PATH: "${CI_PROJECT_DIR}/dockerfile"
+  FQ_IMAGE_NAME: "$CI_REGISTRY_IMAGE:latest"
+
+default:
+  image: quay.io/buildah/stable
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | buildah login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
 # ------------------------------------------------------------------------------
 # Backend Tests
 # ------------------------------------------------------------------------------
@@ -19,44 +30,87 @@ backend-tests:
     - if: $CI_COMMIT_BRANCH =~ /^dev/
 
 # ------------------------------------------------------------------------------
-# Build & Push Docker Image (master/main branch) - Production
+# Build & Push Multi-Arch Image (master/main branch) - Production
 # ------------------------------------------------------------------------------
-# Runs on: Direct commits to master/main only
-build-production:
+build-amd64-prod:
   stage: build
-  image:
-    name: gcr.io/kaniko-project/executor:v1.24.0-debug
-    entrypoint: [""]
-  script:
-    - |
-      /kaniko/executor \
-        --context "${CI_PROJECT_DIR}" \
-        --dockerfile "${CI_PROJECT_DIR}/dockerfile" \
-        --destination "${CI_REGISTRY_IMAGE}:latest" \
-        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+  tags:
+    - saas-linux-small-amd64
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - buildah build --platform=linux/amd64 -f "$DOCKERFILE_PATH" -t "$CI_REGISTRY_IMAGE:amd64" "$CI_PROJECT_DIR"
+    - buildah push "$CI_REGISTRY_IMAGE:amd64"
+
+build-arm64-prod:
+  stage: build
+  tags:
+    - saas-linux-small-arm64
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - buildah build --platform=linux/arm64/v8 -f "$DOCKERFILE_PATH" -t "$CI_REGISTRY_IMAGE:arm64" "$CI_PROJECT_DIR"
+    - buildah push "$CI_REGISTRY_IMAGE:arm64"
+
+create-manifest-prod:
+  stage: build
+  needs: ["build-arm64-prod", "build-amd64-prod"]
+  tags:
+    - saas-linux-small-amd64
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - buildah manifest create "$FQ_IMAGE_NAME"
+    - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:amd64"
+    - buildah manifest add "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:arm64"
+    - buildah manifest push --all "$FQ_IMAGE_NAME"
+    - buildah manifest push --all "$FQ_IMAGE_NAME" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
 
 # ------------------------------------------------------------------------------
-# Build & Push Docker Image (merge requests) - Development/Preview
+# Build & Push Multi-Arch Image (merge requests) - Development/Preview
 # ------------------------------------------------------------------------------
-# Runs on: Merge requests targeting master/main (manual trigger)
-build-mr:
+build-amd64-mr:
   stage: build
-  image:
-    name: gcr.io/kaniko-project/executor:v1.24.0-debug
-    entrypoint: [""]
-  script:
-    - |
-      BRANCH_TAG=$(echo "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" | sed 's|/|-|g')
-      /kaniko/executor \
-        --context "${CI_PROJECT_DIR}" \
-        --dockerfile "${CI_PROJECT_DIR}/dockerfile" \
-        --destination "${CI_REGISTRY_IMAGE}:PR-${CI_MERGE_REQUEST_IID}" \
-        --destination "${CI_REGISTRY_IMAGE}:${BRANCH_TAG}" \
-        --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+  tags:
+    - saas-linux-small-amd64
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
       when: manual
       allow_failure: true
+  script:
+    - MR_BASE_TAG="pr-${CI_MERGE_REQUEST_IID}"
+    - buildah build --platform=linux/amd64 -f "$DOCKERFILE_PATH" -t "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}-amd64" "$CI_PROJECT_DIR"
+    - buildah push "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}-amd64"
+
+build-arm64-mr:
+  stage: build
+  tags:
+    - saas-linux-small-arm64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
+      when: manual
+      allow_failure: true
+  script:
+    - MR_BASE_TAG="pr-${CI_MERGE_REQUEST_IID}"
+    - buildah build --platform=linux/arm64/v8 -f "$DOCKERFILE_PATH" -t "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}-arm64" "$CI_PROJECT_DIR"
+    - buildah push "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}-arm64"
+
+create-manifest-mr:
+  stage: build
+  needs: ["build-arm64-mr", "build-amd64-mr"]
+  tags:
+    - saas-linux-small-amd64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
+      when: manual
+      allow_failure: true
+  script:
+    - MR_BASE_TAG="pr-${CI_MERGE_REQUEST_IID}"
+    - BRANCH_TAG=$(echo "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME}" | sed 's|/|-|g')
+    - buildah manifest create "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
+    - buildah manifest add "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}-amd64"
+    - buildah manifest add "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${MR_BASE_TAG}-arm64"
+    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}"
+    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${BRANCH_TAG}"
+    - buildah manifest push --all "$CI_REGISTRY_IMAGE:${MR_BASE_TAG}" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
 
