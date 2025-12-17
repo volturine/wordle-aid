@@ -34,8 +34,6 @@ backend-tests:
 # ------------------------------------------------------------------------------
 build-amd64-prod:
   stage: build
-  tags:
-    - saas-linux-small-amd64
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
   script:
@@ -44,8 +42,6 @@ build-amd64-prod:
 
 build-arm64-prod:
   stage: build
-  tags:
-    - saas-linux-small-arm64
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
   script:
@@ -55,8 +51,6 @@ build-arm64-prod:
 create-manifest-prod:
   stage: build
   needs: ["build-arm64-prod", "build-amd64-prod"]
-  tags:
-    - saas-linux-small-amd64
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
   script:
@@ -71,8 +65,6 @@ create-manifest-prod:
 # ------------------------------------------------------------------------------
 build-amd64-mr:
   stage: build
-  tags:
-    - saas-linux-small-amd64
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
       when: manual
@@ -84,8 +76,6 @@ build-amd64-mr:
 
 build-arm64-mr:
   stage: build
-  tags:
-    - saas-linux-small-arm64
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
       when: manual
@@ -98,8 +88,6 @@ build-arm64-mr:
 create-manifest-mr:
   stage: build
   needs: ["build-arm64-mr", "build-amd64-mr"]
-  tags:
-    - saas-linux-small-amd64
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master")
       when: manual
