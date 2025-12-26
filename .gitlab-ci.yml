@@ -153,17 +153,16 @@ create-release:
     - apk add --no-cache git
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - |
-      # Fetch all tags to calculate differences
       git fetch --tags
-      # Get the previous tag (ignoring current tag)
       PREV_TAG=$(git describe --tags --abbrev=0 ${CI_COMMIT_TAG}^ 2>/dev/null || echo "")
       if [ -z "$PREV_TAG" ]; then
         CHANGELOG=$(git log --pretty=format:"- %s (%h)" $CI_COMMIT_TAG)
       else
         CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..${CI_COMMIT_TAG})
       fi
-      # Save to dotenv for the release section
       echo "RELEASE_CHANGELOG=$CHANGELOG" >> release.env
+  script:
+    - echo "Creating GitLab Release for tag $CI_COMMIT_TAG"
   artifacts:
     reports:
       dotenv: release.env
