@@ -36,7 +36,7 @@ jobs:
       - name: Build frontend
         run: |
           cd frontend
-          npm ci
+          npm install
           npm run build
 
       - name: Stage frontend for the worker
@@ -102,7 +102,7 @@ jobs:
       - name: Build and stage frontend
         run: |
           cd frontend
-          npm ci
+          npm install
           npm run build
           rm -rf ../worker/public
           mkdir -p ../worker/public
@@ -156,7 +156,7 @@ jobs:
       - name: Build and stage frontend
         run: |
           cd frontend
-          npm ci
+          npm install
           npm run build
           rm -rf ../worker/public
           mkdir -p ../worker/public
