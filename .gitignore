@@ -24,6 +24,11 @@ pip-log.txt
 pip-delete-this-directory.txt
 *.sqlite3
 
+# Cloudflare Worker
+worker/public/
+worker/.wrangler/
+worker/uv.lock
+
 # OS
 .DS_Store
 Thumbs.db

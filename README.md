@@ -1,30 +1,23 @@
-# World Helper Project
+# Wordle Aid
 
-## Structure
+A Wordle helper: word filtering from game feedback + word definitions.
 
-- `backend/` — Python backend (API, logic, word list)
-- `front-end/` — SvelteKit + Tailwind frontend
+- `frontend/` — SvelteKit + Tailwind frontend (static build, PWA)
+- `backend/` — legacy FastAPI backend (kept for reference/tests; replaced by the worker below)
+- `worker/` — Cloudflare Python Worker (FastAPI on Workers + D1 + static assets) — **this is what gets deployed**
+- `database/` — original SQLite databases (source of truth for D1 imports)
 
-See each subdirectory for details.
+## Deploying
+
+See [worker/README.md](worker/README.md).
 
 ```bash
-USER_NAME=kripso
-# unique uuid
-UUID=$(uuidgen)
-UUID=$(echo "$UUID" | tr '[:upper:]' '[:lower:]')
-# Define the base image name
-IMAGE_NAME=gitea.kripso-world.com/${USER_NAME}/wordle_helper
-# echo ${IMAGE_NAME}
-# echo ${UUID}
-
-# Build the image with the UUID tag
-docker build --platform linux/amd64 -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${UUID} .
-
-# Tag the same image as 'latest'
-docker tag ${IMAGE_NAME}:${UUID} ${IMAGE_NAME}:latest
-
-# Push both tags
-docker push ${IMAGE_NAME}:${UUID}
-docker push ${IMAGE_NAME}:latest
-
+cd worker
+npx wrangler d1 create wordle-aid   # once; paste database_id into wrangler.toml
+./scripts/migrate_to_d1.sh          # once; imports words + definitions into D1
+./scripts/build_frontend.sh         # builds frontend -> worker/public
+uv run pywrangler deploy
 ```
+
+The old Docker image / docker-compose / Watchtower setup has been removed —
+the Cloudflare Worker replaces the whole stack (API + static frontend + database).
