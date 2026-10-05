@@ -2,12 +2,12 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { FilePenLine, Grid2x2Check, X } from 'lucide-svelte';
-	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
-	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
-	import { CharacterState } from '$lib/interfaces';
-	import { filterWords } from '$lib/api';
-	import type { WordRow } from '$lib/types';
+	import { FilePenLine, Grid2x2Check, X } from '@lucide/svelte';
+	import ThemeSwitch from '#lib/components/ThemeSwitch.svelte';
+	import WordDefinitionOverlay from '#lib/components/WordDefinitionOverlay.svelte';
+	import { CharacterState } from '#lib/interfaces.js';
+	import { filterWords } from '#lib/api.js';
+	import type { WordRow } from '#lib/types.js';
 
 	const initialRow = (): WordRow =>
 		Array.from({ length: 5 }, () => ({ value: '', state: CharacterState.INCORRECT }));
