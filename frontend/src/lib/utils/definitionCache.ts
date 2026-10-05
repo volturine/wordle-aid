@@ -1,4 +1,4 @@
-import type { DictionaryResponse } from '$lib/types';
+import type { DictionaryResponse } from '#lib/types.js';
 
 const CACHE_KEY = 'word_definitions_cache';
 const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days

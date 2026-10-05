@@ -2,10 +2,10 @@
 	import { on } from 'svelte/events';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { X } from 'lucide-svelte';
-	import type { DictionaryResponse } from '$lib/types';
-	import { getWordDefinition } from '$lib/api';
-	import { getCachedDefinition, setCachedDefinition } from '$lib/utils/definitionCache';
+	import { X } from '@lucide/svelte';
+	import type { DictionaryResponse } from '#lib/types.js';
+	import { getWordDefinition } from '#lib/api.js';
+	import { getCachedDefinition, setCachedDefinition } from '#lib/utils/definitionCache.js';
 
 	let {
 		selectedWord = '',

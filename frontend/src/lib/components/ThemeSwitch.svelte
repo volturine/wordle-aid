@@ -1,6 +1,6 @@
 <script lang="ts">
-	import theme from '$lib/stores/theme';
-	import { Sun, Moon } from 'lucide-svelte';
+	import theme from '#lib/stores/theme.js';
+	import { Sun, Moon } from '@lucide/svelte';
 
 	function toggleTheme() {
 		document.body.classList.add('theme-transitioning');
