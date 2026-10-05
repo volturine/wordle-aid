@@ -8,17 +8,11 @@ import logging
 import os
 
 from db import d1_first, d1_run
-from js import Object, fetch
-from pyodide.ffi import to_js as _to_js
+from pyodide.http import pyfetch
 
 logger = logging.getLogger(__name__)
 
-# Per-isolate response cache to avoid repeat D1/API hits
 _definition_cache: dict[str, dict] = {}
-
-
-def _to_js(obj):
-    return _to_js(obj, dict_converter=Object.fromEntries)
 
 
 async def get_cached_definition(env, word: str) -> dict | None:
@@ -58,10 +52,10 @@ async def _fetch_definition_from_api(env, word: str) -> dict:
         'x-rapidapi-host': api_host,
     }
 
-    response = await fetch(f'https://wordsapiv1.p.rapidapi.com/words/{word}/definitions', _to_js({'headers': headers}))
+    response = await pyfetch(f'https://wordsapiv1.p.rapidapi.com/words/{word}/definitions', headers=headers)
     if not response.ok:
         raise RuntimeError(f'API returned status {response.status}')
-    return (await response.json()).to_py()
+    return await response.json()
 
 
 async def get_word_definition(env, word: str) -> dict:
