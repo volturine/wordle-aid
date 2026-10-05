@@ -115,11 +115,10 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@5a7eac68fb9809dea845d802897dc5c723910fa3 # v7.1.3
 
-      - name: Reset development data and apply schema
+      - name: Apply schema to development D1
         working-directory: worker
         run: |
-          npx wrangler d1 execute wordle-aid-dev --remote --file migrations/0001_words.sql
-          npx wrangler d1 execute wordle-aid-dev --remote --file migrations/0002_definitions.sql
+          npx wrangler d1 execute wordle-aid-dev --remote --file migrations/0000_schema.sql
 
       - name: Deploy development Worker
         working-directory: worker

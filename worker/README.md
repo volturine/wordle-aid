@@ -81,8 +81,11 @@ cd worker && uv run pywrangler deploy
   so the worker uses a hand-rolled router on the `workers` SDK — same endpoints, same behavior.
 - `sqlite3`, `requests` and `httpx` are **not available** in the Python Workers
   runtime; D1 is accessed via `env.DB` (JS interop) and outbound HTTP via JS `fetch`.
-- D1 rejects `BEGIN TRANSACTION`/`COMMIT` in `wrangler d1 execute --file` imports;
-  the generated SQL uses plain idempotent `INSERT OR REPLACE` statements.
+- `wrangler d1 execute --file` rejects `BEGIN TRANSACTION`/`COMMIT`, and re-imports
+  must not rewrite existing rows (D1 counts them in `rows_written`), so the
+  generated SQL uses `INSERT ... ON CONFLICT DO NOTHING` — importing twice writes 0 rows.
+- Data (words, definition seeds) is imported **once**, manually. CI only applies
+  `0000_schema.sql` (DDL, writes nothing at steady state); deploys never touch data.
 - The word dictionary is loaded from D1 once per isolate and cached in memory
   (`_wordle_helpers`), same behaviour as the old global singleton.
 - The Docker image, docker-compose, Watchtower label and DB volume are all

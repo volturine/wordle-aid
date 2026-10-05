@@ -35,9 +35,9 @@ with open(words_path, 'w') as f:
     f.write('CREATE TABLE IF NOT EXISTS words (\n  word TEXT PRIMARY KEY,\n  length INTEGER NOT NULL\n);\n')
     f.write('CREATE INDEX IF NOT EXISTS idx_words_length ON words (length, word);\n')
     # NOTE: no BEGIN TRANSACTION/COMMIT — D1 rejects explicit transactions in --file imports.
-    f.write('DELETE FROM words;\n')
+    # Idempotent, non-destructive: re-importing never rewrites rows that already match.
     for (word,) in words:
-        f.write(f"INSERT OR REPLACE INTO words (word, length) VALUES ('{word}', {len(word)});\n")
+        f.write(f"INSERT INTO words (word, length) VALUES ('{word}', {len(word)}) ON CONFLICT (word) DO NOTHING;\n")
 
 print(f'Wrote {len(words)} words -> {words_path.name}')
 
@@ -59,6 +59,6 @@ with open(defs_path, 'w') as f:
     for word, data in rows:
         # definition_data is already a JSON string; only escape single quotes for the SQL literal
         escaped = data.replace("'", "''")
-        f.write(f"INSERT OR REPLACE INTO definitions (word, definition_data) VALUES ('{word}', '{escaped}');\n")
+        f.write(f"INSERT INTO definitions (word, definition_data) VALUES ('{word}', '{escaped}') ON CONFLICT (word) DO NOTHING;\n")
 
 print(f'Wrote {len(rows)} definitions -> {defs_path.name}')
