@@ -2,7 +2,7 @@
 # Build the SvelteKit frontend and stage it for the Cloudflare Worker.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FRONTEND="$ROOT/frontend"
 PUBLIC="$ROOT/worker/public"
 

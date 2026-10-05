@@ -9,7 +9,7 @@ served directly from Workers Static Assets.
 ```
 worker/
 ├── src/
-│   ├── worker.py                    # FastAPI app + asgi entrypoint
+│   ├── worker.py                    # worker entrypoint (router on the workers SDK)
 │   ├── db.py                        # D1 helpers (Pyodide FFI)
 │   ├── filter_service.py            # wordle filter (was backend/modules/filter)
 │   └── word_definition_service.py   # definitions cache + RapidAPI (was backend/modules/word_definition)
@@ -19,9 +19,25 @@ worker/
 │   ├── build_frontend.sh            # builds frontend -> worker/public
 │   └── migrate_to_d1.sh             # one-time D1 setup + data import
 ├── public/                          # frontend static build (generated, gitignore)
-├── pyproject.toml                   # python worker deps (fastapi, workers-py)
-└── wrangler.toml
+├── pyproject.toml                   # python worker deps (workers-py, workers-runtime-sdk)
+└── wrangler.toml                    # prod (wordle-aid.com) + env.dev (dev.wordle-aid.com)
 ```
+
+## Environments
+
+- **prod**: `wordle-aid.com` — deploys on push to `master` (GitHub Actions)
+- **dev**: `dev.wordle-aid.com` — deploys on PRs labeled `deploy-dev` (GitHub Actions), D1 is reset+reseeded each deploy
+- `env.dev` in wrangler.toml points at the `wordle-aid-dev` D1 database
+
+## CI/CD (GitHub Actions)
+
+`.github/workflows/ci-cd.yaml` mirrors the scrapscache setup:
+
+- `validate` — frontend build, python syntax check, `wrangler deploy --dry-run` for both envs
+- `deploy-cloudflare-dev` — PRs labeled `deploy-dev`, resets dev D1 and redeploys
+- `deploy-cloudflare-production` — push to master, applies schema and redeploys
+
+Required repo secrets: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAPID_API_KEY`.
 
 ## One-time migration
 
@@ -61,8 +77,12 @@ cd worker && uv run pywrangler deploy
 
 ## Notes / gotchas
 
+- FastAPI + Pydantic imports **exceed the Workers startup CPU limit** (1347ms > 1000ms),
+  so the worker uses a hand-rolled router on the `workers` SDK — same endpoints, same behavior.
 - `sqlite3`, `requests` and `httpx` are **not available** in the Python Workers
   runtime; D1 is accessed via `env.DB` (JS interop) and outbound HTTP via JS `fetch`.
+- D1 rejects `BEGIN TRANSACTION`/`COMMIT` in `wrangler d1 execute --file` imports;
+  the generated SQL uses plain idempotent `INSERT OR REPLACE` statements.
 - The word dictionary is loaded from D1 once per isolate and cached in memory
   (`_wordle_helpers`), same behaviour as the old global singleton.
 - The Docker image, docker-compose, Watchtower label and DB volume are all

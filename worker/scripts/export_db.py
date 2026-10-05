@@ -34,11 +34,11 @@ with open(words_path, 'w') as f:
     f.write('-- Dictionary words for Wordle Aid\n')
     f.write('CREATE TABLE IF NOT EXISTS words (\n  word TEXT PRIMARY KEY,\n  length INTEGER NOT NULL\n);\n')
     f.write('CREATE INDEX IF NOT EXISTS idx_words_length ON words (length, word);\n')
-    f.write('BEGIN TRANSACTION;\n')
+    # NOTE: no BEGIN TRANSACTION/COMMIT — D1 rejects explicit transactions in --file imports.
     f.write('DELETE FROM words;\n')
     for (word,) in words:
-        f.write(f"INSERT INTO words (word, length) VALUES ('{word}', {len(word)});\n")
-    f.write('COMMIT;\n')
+        f.write(f"INSERT OR REPLACE INTO words (word, length) VALUES ('{word}', {len(word)});\n")
+
 print(f'Wrote {len(words)} words -> {words_path.name}')
 
 # --- definitions ---
@@ -56,10 +56,9 @@ with open(defs_path, 'w') as f:
         '  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n'
         ');\n'
     )
-    f.write('BEGIN TRANSACTION;\n')
     for word, data in rows:
         # definition_data is already a JSON string; only escape single quotes for the SQL literal
         escaped = data.replace("'", "''")
-        f.write(f"INSERT INTO definitions (word, definition_data) VALUES ('{word}', '{escaped}');\n")
-    f.write('COMMIT;\n')
+        f.write(f"INSERT OR REPLACE INTO definitions (word, definition_data) VALUES ('{word}', '{escaped}');\n")
+
 print(f'Wrote {len(rows)} definitions -> {defs_path.name}')

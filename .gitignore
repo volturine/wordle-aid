@@ -28,7 +28,10 @@ pip-delete-this-directory.txt
 worker/public/
 worker/.wrangler/
 worker/uv.lock
+worker/.venv/
+worker/.venv-workers/
 
 # OS
 .DS_Store
-Thumbs.db
+Thumbs.dbworker/pylock.toml
+worker/python_modules/

@@ -1,16 +1,17 @@
 """Wordle Aid — Cloudflare Python Worker.
 
-FastAPI app providing the API, with the SvelteKit static build served
-from Workers Static Assets. Data lives in D1 instead of local SQLite.
+Hand-rolled router on the workers SDK instead of FastAPI: FastAPI + Pydantic
+imports exceed the Workers startup CPU limit for this small API. Data lives
+in D1, and the SvelteKit static build is served from Workers Static Assets.
 
 Local dev:  uv run pywrangler dev
-Deploy:     uv run pywrangler deploy
+Deploy:     uv run pywrangler deploy [--env dev]
 """
 import datetime
+import json
 import logging
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response
+from workers import WorkerEntrypoint, Response
 
 import filter_service
 import word_definition_service
@@ -18,55 +19,58 @@ import word_definition_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title='Wordle Aid API', version='2.0.0')
+MAX_WORD_LENGTH = 32
 
 
-@app.get('/api/health')
-async def health() -> dict[str, str]:
-    """Lightweight healthcheck endpoint for readiness/liveness probes."""
-    return {'status': 'ok', 'timestamp': datetime.datetime.now(datetime.UTC).isoformat()}
-
-
-@app.post('/api/filter/five_letter_words')
-async def filter_words(request: Request) -> list[str]:
-    """Filter words based on Wordle game state."""
-    body = await request.json()
-    filter_spec = body.get('filter_spec', {})
-
-    env = request.scope['env']
-    helper = await filter_service.get_wordle_helper(env, 5)
-    return helper.filter_characters(filter_spec)
-
-
-@app.get('/api/word-definition/{word}')
-async def get_word_definition(word: str, request: Request) -> dict:
-    """Get word definition - first check D1 cache, then API if not found."""
-    word = word.lower()
-    if not word.isalpha() or len(word) > 32:
-        raise HTTPException(status_code=400, detail='Invalid word')
-
-    env = request.scope['env']
-    try:
-        return await word_definition_service.get_word_definition(env, word)
-    except Exception:
-        raise HTTPException(status_code=500, detail='Error fetching definition') from None
-
-
-# Safety net: with run_worker_first = ["/api/*"], static assets are served
-# directly by Workers Assets and this route is never hit. It keeps the
-# worker functional if run_worker_first is ever set to true instead.
-@app.get('/{full_path:path}')
-async def frontend(full_path: str, request: Request):
-    env = request.scope['env']
-    resp = await env.ASSETS.fetch(f'https://assets.local/{full_path}')
-    body = await resp.bytes()
-    return Response(
-        content=body,
-        status_code=resp.status,
-        media_type=resp.headers.get('content-type', 'text/html'),
+def json_response(data, status: int = 200) -> Response:
+    return Response.json(data) if status == 200 else Response(
+        json.dumps(data), status, headers={'Content-Type': 'application/json'}
     )
 
 
-from workers import asgi  # noqa: E402
+async def handle(request, env) -> Response:
+    url = request.url
+    path = url.split('?', 1)[0].split('://', 1)[-1].split('/', 1)
+    path = '/' + (path[1] if len(path) > 1 else '')
+    method = request.method.value if hasattr(request.method, 'value') else str(request.method)
 
-Default = asgi.entrypoint(app)
+    # --- Health ---
+    if path == '/api/health' and method == 'GET':
+        return json_response({'status': 'ok', 'timestamp': datetime.datetime.now(datetime.UTC).isoformat()})
+
+    # --- Word filter ---
+    if path == '/api/filter/five_letter_words' and method == 'POST':
+        try:
+            body = await request.json()
+        except Exception:
+            return json_response({'detail': 'Invalid JSON body'}, 400)
+        if not isinstance(body, dict) or not isinstance(body.get('filter_spec'), dict):
+            return json_response({'detail': "Body must contain a 'filter_spec' object"}, 400)
+
+        helper = await filter_service.get_wordle_helper(env, 5)
+        return json_response(helper.filter_characters(body['filter_spec']))
+
+    # --- Word definitions ---
+    if path.startswith('/api/word-definition/') and method == 'GET':
+        word = path[len('/api/word-definition/'):].strip('/').lower()
+        if not word or not word.isalpha() or len(word) > MAX_WORD_LENGTH:
+            return json_response({'detail': 'Invalid word'}, 400)
+
+        try:
+            result = await word_definition_service.get_word_definition(env, word)
+        except Exception:
+            logger.exception(f"Failed to fetch definition for '{word}'")
+            return json_response({'detail': 'Error fetching definition'}, 500)
+        return json_response(result)
+
+    # --- Static assets (safety net; assets normally served before the worker) ---
+    if path.startswith('/api/'):
+        return json_response({'detail': 'Not found'}, 404)
+
+    js_resp = await env.ASSETS.fetch(url)
+    return Response(js_resp)
+
+
+class Default(WorkerEntrypoint):
+    async def fetch(self, request):
+        return await handle(request, self.env)

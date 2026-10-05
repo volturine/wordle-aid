@@ -2,6 +2,12 @@ name = "wordle-aid"
 main = "src/worker.py"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["python_workers"]
+# Production is only reachable via wordle-aid.com; no *.workers.dev URL.
+workers_dev = false
+preview_urls = false
+
+[observability]
+enabled = true
 
 [vars]
 RAPID_API_HOST = "wordsapiv1.p.rapidapi.com"
@@ -9,10 +15,11 @@ RAPID_API_HOST = "wordsapiv1.p.rapidapi.com"
 # Secret (set with: pywrangler secret put RAPID_API_KEY):
 #   RAPID_API_KEY
 
+# --- Production: wordle-aid.com ---
 [[d1_databases]]
 binding = "DB"
 database_name = "wordle-aid"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "89e14e67-a38d-423c-aec0-2fed9babc5f5"
 
 [assets]
 directory = "./public"
@@ -22,5 +29,31 @@ binding = "ASSETS"
 run_worker_first = ["/api/*"]
 not_found_handling = "404-page"
 
-[observability]
-enabled = true
+[[routes]]
+pattern = "wordle-aid.com"
+zone_name = "wordle-aid.com"
+custom_domain = true
+
+# --- Development: dev.wordle-aid.com (PR deploys) ---
+[env.dev]
+workers_dev = false
+preview_urls = false
+
+[env.dev.vars]
+RAPID_API_HOST = "wordsapiv1.p.rapidapi.com"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "wordle-aid-dev"
+database_id = "20dce261-9fa7-45e8-ba0d-14a2a075914e"
+
+[env.dev.assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+not_found_handling = "404-page"
+
+[[env.dev.routes]]
+pattern = "dev.wordle-aid.com"
+zone_name = "wordle-aid.com"
+custom_domain = true
