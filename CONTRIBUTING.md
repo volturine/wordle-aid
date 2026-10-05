@@ -40,6 +40,9 @@ uv sync
 uv run pywrangler dev          # http://localhost:8787 (local D1 + assets)
 ```
 
+`npm run dev` proxies `/api` to that worker; set `WORKER_ORIGIN` if it runs
+elsewhere.
+
 See [`worker/README.md`](worker/README.md) for seeding the local D1 database.
 
 ### Architecture in one paragraph

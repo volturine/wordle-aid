@@ -12,10 +12,11 @@ export default {
 			precompress: false,
 			strict: true
 		}),
+		serviceWorker: { register: false },
 
 		// Ensure the app is served from the root path
 		paths: {
 			base: ''
-		},
+		}
 	}
 };

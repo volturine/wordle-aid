@@ -11,11 +11,7 @@ const theme = writable<Theme>(initialValue);
 theme.subscribe((value) => {
     if (browser) {
         window.localStorage.setItem('theme', value);
-        if (value === 'dark') {
-            document.body.classList.add('dark');
-        } else {
-            document.body.classList.remove('dark');
-        }
+        document.documentElement.classList.toggle('dark', value === 'dark');
     }
 });
 

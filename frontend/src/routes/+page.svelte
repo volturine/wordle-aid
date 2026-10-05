@@ -1,668 +1,893 @@
 <script lang="ts">
-	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
-	import { X, FilePenLine, Grid2x2Check } from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { FilePenLine, Grid2x2Check, X } from 'lucide-svelte';
 	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
-
-	import type { WordRow } from '$lib/types';
+	import WordDefinitionOverlay from '$lib/components/WordDefinitionOverlay.svelte';
 	import { CharacterState } from '$lib/interfaces';
 	import { filterWords } from '$lib/api';
+	import type { WordRow } from '$lib/types';
 
-	// State management
-	let wordRows = $state<WordRow[]>([
-		Array(5)
-			.fill('')
-			.map((v) => ({ value: v, state: CharacterState.INCORRECT }))
-	]);
-	let result = $state<string[]>([]);
-	let error = $state('');
-	let loading = $state(false);
-
-	let selectedWord = $state('');
-	let bubblePos = $state({ top: 0, bottom: 0, left: 0 });
-	let overlayPosition = $state<'top' | 'bottom'>('bottom');
-
-	let input_state = $state(CharacterState.WRITING);
-
-	// Local storage keys
+	const initialRow = (): WordRow =>
+		Array.from({ length: 5 }, () => ({ value: '', state: CharacterState.INCORRECT }));
+	const stateLabels: Record<CharacterState, string> = {
+		[CharacterState.WRITING]: 'unmarked',
+		[CharacterState.INCORRECT]: 'gray, not in the answer',
+		[CharacterState.WRONG_POSITION]: 'yellow, in the wrong position',
+		[CharacterState.CORRECT_POSITION]: 'green, in the correct position'
+	};
+	const feedbackStates = [
+		CharacterState.INCORRECT,
+		CharacterState.WRONG_POSITION,
+		CharacterState.CORRECT_POSITION
+	];
 	const WORD_ROWS_KEY = 'wordle-helper-wordRows';
 	const RESULT_KEY = 'wordle-helper-result';
 
+	let wordRows = $state<WordRow[]>([initialRow()]);
+	let result = $state<string[]>([]);
+	let error = $state('');
+	let validationError = $state('');
+	let feedbackStatus = $state('');
+	let invalidCell = $state<{ row: number; column: number } | null>(null);
+	let loading = $state(false);
+	let searchCompleted = $state(false);
+	let inputMode = $state<'writing' | 'feedback'>('writing');
+	let selectedWord = $state('');
+	let bubblePos = $state({ top: 0, bottom: 0, left: 0, maxHeight: 320 });
+	let overlayPosition = $state<'top' | 'bottom'>('bottom');
+	let wordTrigger: HTMLButtonElement | null = null;
+	let activeSearch: AbortController | null = null;
+
 	onMount(() => {
-		const savedRows = localStorage.getItem(WORD_ROWS_KEY);
-		if (savedRows) {
-			try {
-				wordRows = JSON.parse(savedRows);
-			} catch {}
-		}
-		const savedResult = localStorage.getItem(RESULT_KEY);
-		if (savedResult) {
-			try {
-				result = JSON.parse(savedResult);
-			} catch {}
+		try {
+			const savedRows = localStorage.getItem(WORD_ROWS_KEY);
+			const parsedRows: unknown = savedRows ? JSON.parse(savedRows) : null;
+			if (
+				Array.isArray(parsedRows) &&
+				parsedRows.length > 0 &&
+				parsedRows.every(
+					(row) =>
+						Array.isArray(row) &&
+						row.length === 5 &&
+						row.every(
+							(cell) =>
+								typeof cell.value === 'string' && Object.values(CharacterState).includes(cell.state)
+						)
+				)
+			) {
+				wordRows = parsedRows as WordRow[];
+			}
+
+			const savedResult = localStorage.getItem(RESULT_KEY);
+			const parsedResult: unknown = savedResult ? JSON.parse(savedResult) : null;
+			if (Array.isArray(parsedResult) && parsedResult.every((word) => typeof word === 'string')) {
+				result = parsedResult;
+				searchCompleted = result.length > 0;
+			}
+		} catch {
+			localStorage.removeItem(WORD_ROWS_KEY);
+			localStorage.removeItem(RESULT_KEY);
 		}
 	});
 
 	$effect(() => {
 		localStorage.setItem(WORD_ROWS_KEY, JSON.stringify(wordRows));
 	});
+
 	$effect(() => {
 		localStorage.setItem(RESULT_KEY, JSON.stringify(result));
 	});
 
-	function closeOverlay() {
+	function invalidateSearch(clearResults = true) {
+		activeSearch?.abort();
+		activeSearch = null;
+		loading = false;
+		if (clearResults) {
+			result = [];
+			searchCompleted = false;
+		}
+	}
+
+	function closeOverlay(restoreFocus = true) {
 		selectedWord = '';
+		if (restoreFocus) requestAnimationFrame(() => wordTrigger?.focus());
 	}
 
 	function handleUseWord(word: string) {
-		input_state = CharacterState.INCORRECT;
-		const newRow = word.split('').map((char) => ({
-			value: char.toLowerCase(),
-			state: CharacterState.INCORRECT
-		}));
-		// if character state is correct position, keep
-		wordRows.forEach((row, _) => {
-			row.forEach((char, charIdx) => {
-				if (char.value == newRow[charIdx].value) {
-					newRow[charIdx].state = char.state;
+		inputMode = 'writing';
+		const newRow = word
+			.toLowerCase()
+			.split('')
+			.map((value) => ({
+				value,
+				state: CharacterState.INCORRECT
+			}));
+		for (const row of wordRows) {
+			row.forEach((cell, index) => {
+				if (cell.value === newRow[index].value && cell.state === CharacterState.CORRECT_POSITION) {
+					newRow[index].state = CharacterState.CORRECT_POSITION;
 				}
 			});
-		});
-		// if row is empty, replace it
-		const emptyRowIdx = wordRows.findIndex((row) => row.every((char) => !char.value));
-		if (emptyRowIdx !== -1) {
-			wordRows[emptyRowIdx] = newRow;
-		} else {
+		}
+
+		let targetRowIndex = wordRows.findIndex((row) => row.every((cell) => !cell.value));
+		if (targetRowIndex >= 0) {
+			wordRows[targetRowIndex] = newRow;
+		} else if (wordRows.length < 6) {
+			targetRowIndex = wordRows.length;
 			wordRows = [...wordRows, newRow];
+		} else {
+			targetRowIndex = 0;
 		}
-
-		window.scrollTo({ top: 0, behavior: 'smooth' });
+		invalidateSearch();
+		requestAnimationFrame(() =>
+			document
+				.querySelector<HTMLInputElement>(`input[data-row="${targetRowIndex}"][data-char="0"]`)
+				?.focus()
+		);
 	}
 
-	function handleCharInput(rowIdx: number, charIdx: number, event: Event) {
-		const input = event.target as HTMLInputElement;
-		const value = handleSingleCharInput(input.value);
-		wordRows[rowIdx][charIdx].value = value;
+	function handleCharInput(rowIndex: number, columnIndex: number, event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const rawValue = input.value;
+		const value = rawValue.match(/[a-z]/i)?.[0]?.toLowerCase() ?? '';
 		input.value = value;
-		// Move focus to next input if value was entered
-		if (value) {
-			const nextCharIdx = charIdx + 1;
-			if (nextCharIdx < 5) {
-				const nextInput = document.querySelector(
-					`input[data-row="${rowIdx}"][data-char="${nextCharIdx}"]`
-				) as HTMLInputElement;
-				if (nextInput) nextInput.focus();
-			} else {
-				// if character state is correct position, keep
-				wordRows.forEach((row, _) => {
-					row.forEach((char, charIdx) => {
-						if (char.value == wordRows[rowIdx][charIdx].value) {
-							wordRows[rowIdx][charIdx].state = char.state;
-						}
-					});
-				});
-			}
+		wordRows[rowIndex][columnIndex].value = value;
+		invalidateSearch();
+		error = '';
+
+		if (rawValue && !/^[a-z]$/i.test(rawValue)) {
+			invalidCell = { row: rowIndex, column: columnIndex };
+			validationError = 'Use one letter from A to Z in each square.';
+		} else if (invalidCell?.row === rowIndex && invalidCell.column === columnIndex) {
+			invalidCell = null;
+			validationError = '';
+		}
+
+		if (value && columnIndex < 4) {
+			document
+				.querySelector<HTMLInputElement>(
+					`input[data-row="${rowIndex}"][data-char="${columnIndex + 1}"]`
+				)
+				?.focus();
 		}
 	}
 
-	function handleCharKeydown(rowIdx: number, charIdx: number, event: KeyboardEvent) {
+	function cycleFeedback(rowIndex: number, columnIndex: number) {
+		const cell = wordRows[rowIndex][columnIndex];
+		if (!cell.value) return;
+		const currentIndex = feedbackStates.indexOf(cell.state);
+		cell.state = feedbackStates[(currentIndex + 1) % feedbackStates.length];
+		feedbackStatus = `Guess ${rowIndex + 1}, letter ${columnIndex + 1}: ${stateLabels[cell.state]}.`;
+		invalidateSearch();
+	}
+
+	function handleCharKeydown(rowIndex: number, columnIndex: number, event: KeyboardEvent) {
+		if (inputMode === 'feedback' && (event.key === 'Enter' || event.key === ' ')) {
+			event.preventDefault();
+			cycleFeedback(rowIndex, columnIndex);
+			return;
+		}
+		if (event.key === 'Enter') event.preventDefault();
 		if (event.key === 'Backspace') {
-			const current = wordRows[rowIdx][charIdx];
-			if (!current.value && charIdx > 0) {
-				const prevCharIdx = charIdx - 1;
-				wordRows[rowIdx][prevCharIdx].value = '';
-				const prevInput = document.querySelector(
-					`input[data-row="${rowIdx}"][data-char="${prevCharIdx}"]`
-				) as HTMLInputElement;
-				if (prevInput) prevInput.focus();
-				// Prevent default so browser doesn't go back
+			const cell = wordRows[rowIndex][columnIndex];
+			if (!cell.value && columnIndex > 0) {
+				wordRows[rowIndex][columnIndex - 1].value = '';
+				document
+					.querySelector<HTMLInputElement>(
+						`input[data-row="${rowIndex}"][data-char="${columnIndex - 1}"]`
+					)
+					?.focus();
 				event.preventDefault();
 			}
 		}
 	}
 
-	function handleMouseDown(rowIdx: number, charIdx: number, event: MouseEvent) {
-		if (input_state != CharacterState.WRITING) {
-			toggleCharState(rowIdx, charIdx);
-			event.preventDefault();
-		}
+	function addRow() {
+		if (wordRows.length >= 6) return;
+		inputMode = 'writing';
+		wordRows = [...wordRows, initialRow()];
+		invalidateSearch();
+		requestAnimationFrame(() => {
+			const index = wordRows.length - 1;
+			document
+				.querySelector<HTMLInputElement>(`input[data-row="${index}"][data-char="0"]`)
+				?.focus();
+		});
 	}
 
-	function toggleCharState(rowIdx: number, charIdx: number) {
-		// based on input_state, toggle the character state
-		const currentChar = wordRows[rowIdx][charIdx];
-		switch (input_state) {
-			case CharacterState.WRITING:
-				currentChar.state = currentChar.state;
-				break;
-			default:
-				if (!wordRows[rowIdx][charIdx].value) return; // Don't toggle empty cells
-				const states = Object.values(CharacterState);
-				const currentState = wordRows[rowIdx][charIdx].state;
-				const currentIdx = states.indexOf(currentState);
-				const nextIdx = (currentIdx + 1) % states.length;
-				wordRows[rowIdx][charIdx].state = states[nextIdx];
-				// ignore the writing state
-				if (states[nextIdx] === CharacterState.WRITING) {
-					wordRows[rowIdx][charIdx].state = CharacterState.INCORRECT;
-				}
-		}
-	}
-
-	function addNewRow() {
-		input_state = CharacterState.WRITING;
-		wordRows = [
-			...wordRows,
-			Array(5)
-				.fill('')
-				.map((v) => ({ value: v, state: CharacterState.INCORRECT }))
-		];
-	}
-
-	function removeRow(rowIdx: number) {
-		if (wordRows.length > 1) {
-			wordRows = wordRows.filter((_, idx) => idx !== rowIdx);
-		}
+	function removeRow(rowIndex: number) {
+		if (wordRows.length <= 1) return;
+		wordRows = wordRows.filter((_, index) => index !== rowIndex);
+		invalidCell = null;
+		validationError = '';
+		invalidateSearch();
+		requestAnimationFrame(() => {
+			const nextRowIndex = Math.min(rowIndex, wordRows.length - 1);
+			document
+				.querySelector<HTMLInputElement>(`input[data-row="${nextRowIndex}"][data-char="0"]`)
+				?.focus();
+		});
 	}
 
 	function reset() {
-		input_state = CharacterState.WRITING;
-		wordRows = Array(1)
-			.fill('')
-			.map(() => Array(5).fill({ value: '', state: 'incorrect' }));
+		invalidateSearch();
+		inputMode = 'writing';
+		wordRows = [initialRow()];
 		result = [];
+		searchCompleted = false;
 		error = '';
-	}
-
-	function handleSingleCharInput(value: string): string {
-		return value.slice(0, 1);
+		validationError = '';
+		invalidCell = null;
+		selectedWord = '';
 	}
 
 	function showOverlay(word: string, event: MouseEvent) {
-		selectedWord = word;
-		const target = event.target as HTMLElement;
-		const rect = target.getBoundingClientRect();
+		wordTrigger = event.currentTarget as HTMLButtonElement;
+		const rect = wordTrigger.getBoundingClientRect();
+		const belowSpace = window.innerHeight - rect.bottom - 24;
+		const aboveSpace = rect.top - 24;
+		overlayPosition = belowSpace >= aboveSpace ? 'bottom' : 'top';
 		bubblePos = {
 			top: rect.top,
 			bottom: rect.bottom,
-			left: window.innerWidth < 1200 ? window.innerWidth / 2 : rect.left - window.scrollX
+			left: Math.max(
+				Math.min(192, (window.innerWidth - 32) / 2) + 16,
+				Math.min(
+					window.innerWidth - Math.min(192, (window.innerWidth - 32) / 2) - 16,
+					rect.left + rect.width / 2
+				)
+			),
+			maxHeight: Math.max(0, Math.min(360, overlayPosition === 'bottom' ? belowSpace : aboveSpace))
 		};
-		overlayPosition = rect.top < window.innerHeight / 2 ? 'bottom' : 'top';
+		selectedWord = word;
 	}
-	async function handleSearch() {
+
+	async function handleSearch(event: SubmitEvent) {
+		event.preventDefault();
+		const invalidRow = wordRows.findIndex((row) =>
+			row.some((cell) => cell.value && !/^[a-z]$/i.test(cell.value))
+		);
+		if (invalidRow >= 0) {
+			const invalidColumn = wordRows[invalidRow].findIndex(
+				(cell) => cell.value && !/^[a-z]$/i.test(cell.value)
+			);
+			invalidCell = { row: invalidRow, column: invalidColumn };
+			validationError = 'Use one letter from A to Z in each square.';
+			document
+				.querySelector<HTMLInputElement>(
+					`input[data-row="${invalidRow}"][data-char="${invalidColumn}"]`
+				)
+				?.focus();
+			return;
+		}
+
+		activeSearch?.abort();
+		const controller = new AbortController();
+		activeSearch = controller;
+		loading = true;
+		searchCompleted = false;
+		error = '';
+		validationError = '';
+		invalidCell = null;
+		result = [];
+
 		try {
-			loading = true;
-			error = '';
-			result = await filterWords(wordRows);
-		} catch (e) {
-			error = 'Request failed';
-			console.error('Filter error:', e);
+			const words = await filterWords(wordRows, controller.signal);
+			if (activeSearch !== controller) return;
+			result = words;
+			searchCompleted = true;
+		} catch (cause) {
+			if (controller.signal.aborted) return;
+			console.error('Filter error:', cause);
+			error = 'We couldn’t reach the word list. Check your connection and try again.';
 		} finally {
-			loading = false;
+			if (activeSearch === controller) {
+				activeSearch = null;
+				loading = false;
+			}
 		}
 	}
 </script>
 
-<div class="page-background">
-	<div class="container">
-		<header class="header">
-			<h1 class="welcome">Welcome</h1>
-			<div><ThemeSwitch /></div>
+<svelte:head>
+	<title>Wordle Aid — Find possible answers</title>
+	<meta
+		name="description"
+		content="Enter your Wordle guesses, mark each letter’s color, and find possible answers with clear definitions."
+	/>
+	<meta property="og:title" content="Wordle Aid — Find possible answers" />
+	<meta
+		property="og:description"
+		content="Enter your Wordle guesses, mark each letter’s color, and find possible answers with clear definitions."
+	/>
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://wordle-aid.com/" />
+	<meta property="og:image" content="https://wordle-aid.com/og-image.png" />
+	<meta property="og:site_name" content="Wordle Aid" />
+</svelte:head>
+
+<div class="page-shell">
+	<main class="app-card">
+		<header class="page-header">
+			<div class="top-bar">
+				<p class="eyebrow">Wordle Aid</p>
+				<ThemeSwitch />
+			</div>
+			<h1>Find possible answers.</h1>
+			<p class="intro">Enter each guess, mark the letter colors, and narrow down your next move.</p>
 		</header>
-		<p class="instructions">
-			<span class="example">Gray for incorrect letters</span>
-			<span class="example">Yellow for letters in wrong position</span>
-			<span class="example">Green for letters in correct position</span>
-		</p>
-		<main class="main-content">
-			<div class="action-buttons">
+
+		<section class="legend" aria-label="Letter color guide">
+			<p>
+				<span class="legend-swatch gray"></span><strong>Gray</strong><span>Not in the word</span>
+			</p>
+			<p>
+				<span class="legend-swatch yellow"></span><strong>Yellow</strong><span>Wrong spot</span>
+			</p>
+			<p>
+				<span class="legend-swatch green"></span><strong>Green</strong><span>Right spot</span>
+			</p>
+		</section>
+
+		<form class="guess-form" onsubmit={handleSearch} aria-busy={loading}>
+			<div class="mode-switch" role="group" aria-label="Guess entry mode">
 				<button
-					class="action-button write"
-					class:active={input_state === CharacterState.WRITING}
-					title="Write Mode"
-					onclick={() => (input_state = CharacterState.WRITING)}
+					type="button"
+					class:active={inputMode === 'writing'}
+					aria-pressed={inputMode === 'writing'}
+					onclick={() => (inputMode = 'writing')}
 				>
-					<FilePenLine />
+					<FilePenLine size={18} aria-hidden="true" />
+					<span>Type letters</span>
 				</button>
 				<button
-					class="action-button select"
-					class:active={input_state !== CharacterState.WRITING}
-					title="Select State Mode"
-					onclick={() => (input_state = CharacterState.INCORRECT)}
+					type="button"
+					class:active={inputMode === 'feedback'}
+					aria-pressed={inputMode === 'feedback'}
+					onclick={() => (inputMode = 'feedback')}
 				>
-					<Grid2x2Check />
+					<Grid2x2Check size={18} aria-hidden="true" />
+					<span>Mark colors</span>
 				</button>
 			</div>
-			<div class="word-grid">
-				{#each wordRows as row, rowIdx}
-					<div class="word-row">
-						<button
-							class="remove-row"
-							onclick={() => removeRow(rowIdx)}
-							title="Remove row"
-							aria-label="Remove row"
-						>
-							<X />
-						</button>
+			<p class="mode-help" id="mode-help">
+				{inputMode === 'writing'
+					? 'Type one letter in each square. Your guesses are saved on this device.'
+					: 'Click a letter, or focus it and press Enter or Space, to cycle gray, yellow, and green.'}
+			</p>
+
+			<div class="word-grid" role="group" aria-label="Your guesses">
+				{#each wordRows as row, rowIndex (row)}
+					<div class="word-row" role="group" aria-label={`Guess ${rowIndex + 1}`}>
 						<div class="word-row-content">
-							{#each row as char, charIdx}
+							{#each row as cell, columnIndex (columnIndex)}
 								<input
 									type="text"
 									maxlength="1"
-									data-row={rowIdx}
-									data-char={charIdx}
-									value={char.value}
-									class={char.state}
-									onfocus={(e) => (e.target as HTMLInputElement).select()}
-									oninput={(e) => handleCharInput(rowIdx, charIdx, e)}
-									onkeydown={(e) => handleCharKeydown(rowIdx, charIdx, e)}
-									onmousedown={(e) => handleMouseDown(rowIdx, charIdx, e)}
+									inputmode="text"
+									spellcheck="false"
+									autocomplete="off"
+									data-row={rowIndex}
+									data-char={columnIndex}
+									aria-label={`Guess ${rowIndex + 1}, letter ${columnIndex + 1}, ${stateLabels[cell.state]}`}
+									aria-describedby={invalidCell?.row === rowIndex &&
+									invalidCell.column === columnIndex
+										? `mode-help guess-error-${rowIndex}`
+										: 'mode-help'}
+									aria-invalid={invalidCell?.row === rowIndex && invalidCell.column === columnIndex}
+									value={cell.value}
+									class={cell.value ? cell.state : 'empty'}
+									onfocus={(event) => (event.currentTarget as HTMLInputElement).select()}
+									oninput={(event) => handleCharInput(rowIndex, columnIndex, event)}
+									onkeydown={(event) => handleCharKeydown(rowIndex, columnIndex, event)}
+									onclick={() => inputMode === 'feedback' && cycleFeedback(rowIndex, columnIndex)}
 								/>
 							{/each}
 						</div>
-						<div class="empty-space"></div>
+						{#if wordRows.length > 1}
+							<button
+								type="button"
+								class="remove-row"
+								aria-label={`Remove guess ${rowIndex + 1}`}
+								title={`Remove guess ${rowIndex + 1}`}
+								onclick={() => removeRow(rowIndex)}
+							>
+								<X size={18} aria-hidden="true" />
+							</button>
+						{:else}
+							<span aria-hidden="true"></span>
+						{/if}
 					</div>
+					{#if invalidCell?.row === rowIndex}
+						<p class="field-error" role="alert" id={`guess-error-${rowIndex}`}>
+							{validationError}
+						</p>
+					{/if}
 				{/each}
 			</div>
+			<p class="visually-hidden" role="status" aria-live="polite">{feedbackStatus}</p>
 
-			<div class="controls">
-				<button onclick={addNewRow} disabled={wordRows.length >= 6} class="add-row">Add Row</button>
-				<button onclick={handleSearch} class="search">Filter</button>
-				<button onclick={reset} class="reset">Reset</button>
-			</div>
-
-			{#if error}
-				<div class="error">{error}</div>
-			{/if}
-		</main>
-		{#if loading}
-			<div class="loading">Loading...</div>
-		{:else if result.length}
-			<div class="results">
-				<h2>Found {result.length} words</h2>
-				<div class="word-list">
-					{#each result as word}
-						<button class="word" onclick={(e) => showOverlay(word, e)}>{word}</button>
-					{/each}
+			<div class="form-actions">
+				<button type="submit" class="primary-action" disabled={loading}>
+					{loading ? 'Finding answers…' : 'Filter candidates'}
+				</button>
+				<div class="secondary-actions">
+					<button
+						type="button"
+						class="secondary-action"
+						onclick={addRow}
+						disabled={wordRows.length >= 6}
+					>
+						Add guess <span class="visually-hidden">({wordRows.length} of 6)</span>
+					</button>
+					<button type="button" class="reset-action" onclick={reset}>Reset</button>
 				</div>
 			</div>
+		</form>
+
+		{#if loading}
+			<p class="status-message" role="status" aria-live="polite">Finding possible answers…</p>
+		{:else if error}
+			<p class="error-message" role="alert">{error}</p>
+		{:else if searchCompleted && result.length === 0}
+			<section
+				class="empty-state"
+				aria-live="polite"
+				in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
+			>
+				<h2>No matching words</h2>
+				<p>Check the colors on your guesses, then filter again.</p>
+			</section>
+		{:else if searchCompleted}
+			<section
+				class="results"
+				aria-busy="false"
+				in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
+			>
+				<p class="results-count" role="status" aria-live="polite">
+					Found {result.length}
+					{result.length === 1 ? 'possible answer' : 'possible answers'}.
+				</p>
+				<ul class="word-list" aria-label="Possible answers">
+					{#each result as word (word)}
+						<li>
+							<button
+								type="button"
+								class="word-result"
+								aria-haspopup="dialog"
+								aria-expanded={selectedWord === word}
+								onclick={(event) => showOverlay(word, event)}
+							>
+								{word}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
 		{/if}
+
 		<WordDefinitionOverlay
 			{selectedWord}
 			{bubblePos}
+			position={overlayPosition}
 			onClose={closeOverlay}
 			onUseWord={handleUseWord}
-			position={overlayPosition}
 		/>
 
 		<footer class="footer">
 			<p>
-				This website is an independent tool designed to assist users in solving word puzzles and is
-				not affiliated with, endorsed by, or sponsored by The New York Times Company or the official
-				Wordle game. "Wordle" is a trademark of The New York Times Company. All references to Wordle
-				are made for descriptive and informational purposes only. This site does not host or
-				reproduce the original Wordle game and is intended solely as a resource for players. All
-				content and tools provided here are independently created.
+				Wordle is a trademark of The New York Times Company. Wordle Aid is an independent puzzle
+				helper and is not affiliated with or endorsed by The New York Times.
 			</p>
 		</footer>
-	</div>
+	</main>
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		font-family: 'Comic Sans MS';
-	}
-
-	:global(button) {
-		font-family: 'Comic Sans MS';
-		font-size: 1em;
-	}
-
-	:global(input) {
-		font-family: 'Comic Sans MS';
-	}
-
-	:global(:root) {
-		--white: white;
-		--black: #1a1a1a;
-
-		--gray-dark-base: #1a1a1a;
-		--gray-medium-base: #4a4a4a;
-		--gray-light-base: #787c7e;
-		--gray-border-base: #d3d6da;
-		--gray-border-focus-base: #878a8c;
-
-		--yellow-base: #c9b458;
-		--green-base: #6aaa64;
-		--red-base: #dc2626;
-
-		--shadow-hover: rgba(0, 0, 0, 0.1);
-
-		/* Light Theme */
-		--color-page-bg: #f4f4f5; /* zinc-100 */
-		--color-container-bg: var(--white);
-		--color-primary: var(--gray-dark-base);
-		--color-secondary: var(--gray-medium-base);
-		--color-tertiary: var(--white);
-		--gray-border: var(--gray-border-base);
-		--gray-border-focus: var(--gray-border-focus-base);
-		--color-incorrect: var(--gray-light-base);
-		--color-correct-position: var(--green-base);
-		--color-wrong-position: var(--yellow-base);
-		--color-error-background: var(--white);
-		--color-error: var(--red-base);
-		--red: var(--red-base);
-	}
-
-	:global(body.dark) {
-		--gray-dark-base: #e5e5e5;
-		--gray-medium-base: #a3a3a3;
-		--gray-light-base: #737373;
-		--gray-border-base: #525252;
-		--gray-border-focus-base: #737373;
-
-		/* Dark Theme */
-		--color-page-bg: var(--black);
-		--color-container-bg: #27272a; /* zinc-800 */
-		--color-primary: var(--gray-dark-base);
-		--color-secondary: var(--gray-medium-base);
-		--color-tertiary: var(--black);
-		--gray-border: var(--gray-border-base);
-		--gray-border-focus: var(--gray-border-focus-base);
-		--color-incorrect: var(--gray-light-base);
-	}
-
-	.page-background {
-		background-color: var(--color-page-bg);
+	.page-shell {
 		min-height: 100vh;
-		padding: 20px 0;
+		padding: var(--space-8) var(--space-4);
+		background: var(--page);
 	}
 
-	.header {
-		position: relative;
+	.app-card {
+		width: min(100%, 48rem);
+		margin: 0 auto;
+		padding: var(--space-8);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-card);
+		background: var(--surface);
+		box-shadow: var(--shadow);
+	}
+
+	.top-bar {
 		display: flex;
 		align-items: center;
-		justify-content: flex-end;
-		height: 60px;
+		justify-content: space-between;
+		gap: var(--space-4);
+		margin-bottom: var(--space-4);
 	}
 
-	.welcome {
-		position: absolute;
-		left: 50%;
-		transform: translateX(-50%);
+	.eyebrow {
 		margin: 0;
-	}
-
-	.container {
-		max-width: 800px;
-		margin: 0 auto;
-		padding: 20px;
-		display: flex;
-		flex-direction: column;
-		min-height: calc(100vh - 80px);
-		background-color: var(--color-bg);
-		color: var(--color-primary);
+		color: var(--muted);
+		font-size: 0.875rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	h1 {
-		text-align: center;
-		color: var(--color-primary);
-		margin-bottom: 1rem;
-		font-size: 2.7rem;
-		font-weight: 700;
-	}
-	.action-buttons {
-		display: flex;
-		justify-content: center;
-		gap: 14px;
-		margin-bottom: 16px;
+		margin: 0;
+		font-size: 2rem;
+		line-height: 1.15;
+		letter-spacing: -0.02em;
+		text-wrap: balance;
 	}
 
-	.action-button {
-		width: 43px;
-		height: 43px;
-		display: flex;
+	.intro {
+		max-width: 38rem;
+		margin: var(--space-2) 0 0;
+		color: var(--muted);
+		line-height: 1.5;
+		text-wrap: pretty;
+	}
+
+	.legend {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--space-3);
+		margin: var(--space-6) 0;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-control);
+		background: var(--page);
+	}
+
+	.legend p {
+		display: grid;
+		grid-template-columns: 12px minmax(0, 1fr);
+		align-content: start;
+		align-items: center;
+		gap: 0 var(--space-2);
+		margin: 0;
+		font-size: 0.875rem;
+		line-height: 1.45;
+	}
+
+	.legend p > span:last-child {
+		grid-column: 2;
+		color: var(--muted);
+	}
+
+	.legend-swatch {
+		width: 12px;
+		height: 12px;
+		border-radius: var(--space-1);
+	}
+
+	.legend-swatch.gray {
+		background: var(--gray);
+	}
+	.legend-swatch.yellow {
+		background: var(--yellow);
+	}
+	.legend-swatch.green {
+		background: var(--tile-green);
+	}
+
+	.guess-form {
+		margin: 0;
+	}
+
+	.mode-switch {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-1);
+		max-width: 24rem;
+		padding: var(--space-1);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-control);
+		background: var(--page);
+	}
+
+	.mode-switch button {
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		position: relative;
-		transition: all 0.2s ease;
-		padding: 0;
+		gap: var(--space-2);
+		min-width: 0;
+		padding: 0 var(--space-2);
+		border-color: transparent;
+		background: transparent;
+		color: var(--muted);
+		font-weight: 600;
+		white-space: nowrap;
 	}
 
-	.action-button.active {
-		border-color: var(--color-primary);
-		transform: scale(1.35);
+	.mode-switch button:hover:not(:disabled) {
+		border-color: transparent;
+		color: var(--ink);
 	}
 
-	.write {
-		background-color: var(--color-secondary);
-		color: var(--color-tertiary);
+	.mode-switch button.active {
+		border-color: var(--line);
+		background: var(--surface-raised);
+		color: var(--ink);
+		box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 	}
 
-	.select {
-		/* gradient over incorect, wrongposition, correct */
-		background: linear-gradient(
-			to right,
-			var(--color-incorrect),
-			var(--color-wrong-position),
-			var(--color-correct-position)
-		);
-		color: var(--color-tertiary);
-	}
-
-	.instructions {
-		text-align: center;
-		margin-bottom: 2rem;
-		color: var(--color-secondary);
-		line-height: 1.5;
-	}
-
-	.example {
-		padding: 2px 8px;
-		border-radius: 4px;
-		margin: 0 4px;
-		display: block;
+	.mode-help {
+		min-height: 2.9em;
+		margin: var(--space-2) 0 var(--space-4);
+		color: var(--muted);
+		font-size: 0.875rem;
+		line-height: 1.45;
 	}
 
 	.word-grid {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		margin: 20px auto;
-		width: 100%;
-		align-items: center;
+		gap: var(--space-2);
 	}
 
 	.word-row {
-		display: flex;
-		align-items: center;
+		display: grid;
+		grid-template-columns: 44px minmax(0, 20rem) 44px;
 		justify-content: center;
-		gap: 12px;
-		width: 100%;
+		align-items: center;
+		gap: var(--space-2);
 	}
 
 	.word-row-content {
-		display: flex;
-		gap: 8px;
-		justify-content: center;
+		display: grid;
+		grid-column: 2;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: var(--space-2);
+		min-width: 0;
 	}
 
-	.empty-space {
-		width: 54px;
-		height: 54px;
+	.word-row input {
+		width: 100%;
+		min-width: 0;
+		min-height: 44px;
+		aspect-ratio: 1;
+		padding: 0;
+		border: 2px solid var(--line);
+		border-radius: var(--radius-control);
+		background: var(--surface-raised);
+		color: var(--ink);
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 1.5rem;
+		font-weight: 700;
+		text-align: center;
+		text-transform: uppercase;
+		caret-color: transparent;
+		transition:
+			background-color 160ms ease,
+			border-color 160ms ease;
+	}
+
+	.word-row input.empty:focus {
+		border-color: var(--line-strong);
+	}
+
+	.word-row input.incorrect,
+	.word-row input.wrong-position,
+	.word-row input.correct-position {
+		border-color: transparent;
+		color: var(--tile-ink);
+	}
+
+	.word-row input.incorrect {
+		background: var(--gray);
+	}
+	.word-row input.wrong-position {
+		background: var(--yellow);
+	}
+	.word-row input.correct-position {
+		background: var(--tile-green);
 	}
 
 	.remove-row {
-		width: 54px;
-		height: 54px;
-		background: none;
-		border: none;
-		cursor: pointer;
+		width: 100%;
+		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0;
-		color: var(--red);
-	}
-
-	input {
-		width: 54px;
-		height: 54px;
-		padding: 2px;
-		text-align: center;
-		justify-content: center;
-		font-size: 1.7em;
-		font-weight: bold;
-		text-transform: uppercase;
-		border: 2px solid var(--gray-border);
-		border-radius: 4px;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		caret-color: transparent;
-		-webkit-user-select: none; /* Safari */
-		user-select: none; /* Standard syntax */
-		background-color: transparent;
-		color: var(--color-primary);
-	}
-	input::selection {
+		border-color: transparent;
 		background: transparent;
-		color: inherit;
+		color: var(--muted);
 	}
 
-	input:focus {
-		border-color: var(--gray-border-focus);
+	.remove-row:hover:not(:disabled) {
+		border-color: var(--danger);
+		background: var(--danger-surface);
+		color: var(--danger);
 	}
 
-	input.correct-position {
-		background-color: var(--color-correct-position);
-		border-color: var(--color-correct-position);
-		color: var(--color-tertiary);
-	}
-
-	input.wrong-position {
-		background-color: var(--color-wrong-position);
-		border-color: var(--color-wrong-position);
-		color: var(--color-tertiary);
-	}
-
-	input.incorrect {
-		background-color: var(--color-incorrect);
-		border-color: var(--color-incorrect);
-		color: var(--color-tertiary);
-	}
-
-	.controls {
-		display: flex;
-		gap: 16px;
-		justify-content: center;
-		margin: 24px auto;
-	}
-
-	@media (max-width: 480px) {
-		input {
-			width: clamp(35px, 12vw, 54px);
-			height: clamp(35px, 12vw, 54px);
-		}
-	}
-
-	button {
-		padding: 12px 12px;
-		cursor: pointer;
-		border: none;
-		border-radius: 4px;
-		font-weight: 600;
-		transition: all 0.2s ease;
-	}
-
-	button.add-row {
-		width: 100px;
-		background-color: var(--color-secondary);
-		color: var(--color-tertiary);
-	}
-
-	button.search {
-		width: 100px;
-		background-color: var(--color-correct-position);
-		color: var(--color-tertiary);
-	}
-
-	button.reset {
-		width: 100px;
-		background-color: var(--red);
-		color: var(--color-tertiary);
-	}
-
-	button.reset:hover:not(:disabled),
-	button:hover:not(:disabled) {
-		box-shadow: 0 2px 8px var(--shadow-hover);
-	}
-
-	button:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-	}
-
-	.main-content {
-		flex-grow: 1;
-	}
-
-	.results {
-		flex-wrap: wrap;
-		justify-content: center;
-	}
-
-	.results h2 {
+	.field-error {
+		margin: 0;
+		color: var(--danger);
+		font-size: 0.875rem;
 		text-align: center;
-		color: var(--color-secondary);
-		margin-bottom: 16px;
+	}
+
+	.form-actions {
+		display: grid;
+		gap: var(--space-2);
+		margin-top: var(--space-6);
+	}
+
+	.primary-action {
+		min-height: 48px;
+		border-color: var(--green);
+		background: var(--green);
+		color: var(--action-ink);
+		font-weight: 700;
+	}
+
+	.primary-action:hover:not(:disabled) {
+		border-color: var(--green-hover);
+		background: var(--green-hover);
+	}
+
+	.secondary-actions {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-2);
+	}
+
+	.secondary-action,
+	.reset-action {
+		padding: 0 var(--space-4);
+		font-weight: 600;
+	}
+
+	.reset-action {
+		color: var(--danger);
+	}
+
+	.reset-action:hover:not(:disabled) {
+		border-color: var(--danger);
+		background: var(--danger-surface);
+	}
+
+	.status-message,
+	.error-message {
+		margin: var(--space-6) 0 0;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-control);
+		line-height: 1.5;
+	}
+
+	.status-message {
+		background: var(--page);
+		color: var(--muted);
+	}
+
+	.error-message {
+		border: 1px solid var(--danger);
+		background: var(--danger-surface);
+		color: var(--danger);
+	}
+
+	.empty-state,
+	.results {
+		margin-top: var(--space-6);
+		padding-top: var(--space-6);
+		border-top: 1px solid var(--line);
+	}
+
+	.empty-state h2 {
+		margin: 0 0 var(--space-2);
+		font-size: 1.25rem;
+	}
+
+	.empty-state p,
+	.results-count {
+		margin: 0;
+		color: var(--muted);
+		line-height: 1.5;
 	}
 
 	.word-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		justify-content: center;
-		margin-top: 1rem;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+		gap: var(--space-2);
+		margin: var(--space-4) 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.word-list li {
+		margin: 0;
+	}
+
+	.word-result {
+		width: 100%;
+		padding: 0 var(--space-2);
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-weight: 700;
+		letter-spacing: 0.04em;
 		text-transform: uppercase;
-		/* Performance optimizations */
-		contain: layout style paint;
-		will-change: auto;
 	}
 
-	.word {
-		background-color: var(--color-secondary);
-		color: var(--color-tertiary);
-		padding: 8px 14px;
-		border-radius: 4px;
-		cursor: pointer;
-		font-size: 1em;
-		transition: background-color 0.2s;
-		text-transform: uppercase;
-	}
-
-	/* Disable transitions during theme change */
-	:global(body.theme-transitioning) .word {
-		transition: none !important;
-	}
-
-	.word:hover {
-		background-color: var(--color-primary);
-	}
-
-	.loading,
-	.error {
-		text-align: center;
-		margin-top: 2rem;
-		font-size: 1.2rem;
+	.word-result:hover:not(:disabled) {
+		border-color: var(--green);
+		background: var(--page);
 	}
 
 	.footer {
-		margin-top: 2rem;
-		padding-top: 1rem;
-		border-top: 1px solid var(--gray-border);
-		font-size: 0.8rem;
-		color: var(--color-secondary);
-		text-align: center;
+		margin-top: var(--space-8);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--line);
+		color: var(--muted);
+		font-size: 0.875rem;
+		line-height: 1.5;
+	}
+
+	.footer p {
+		margin: 0;
+	}
+
+	@media (max-width: 520px) {
+		.page-shell {
+			padding: 0;
+			background: var(--surface);
+		}
+		.app-card {
+			min-height: 100vh;
+			padding: var(--space-3) var(--space-4) var(--space-6);
+			border: 0;
+			border-radius: 0;
+			box-shadow: none;
+		}
+		.top-bar {
+			margin-bottom: var(--space-3);
+		}
+		h1 {
+			font-size: 1.75rem;
+		}
+		.legend {
+			grid-template-columns: 1fr;
+			gap: var(--space-1);
+			margin: var(--space-4) 0 var(--space-6);
+			padding: var(--space-3) var(--space-4);
+		}
+		.legend p {
+			grid-template-columns: 12px 4rem minmax(0, 1fr);
+		}
+		.legend p > span:last-child {
+			grid-column: 3;
+		}
+		.mode-switch {
+			max-width: none;
+		}
+		.word-row {
+			grid-template-columns: 36px minmax(0, 1fr) 36px;
+		}
+		.word-row,
+		.word-row-content {
+			gap: var(--space-1);
+		}
+		.word-row input {
+			font-size: 1.25rem;
+		}
+	}
+
+	@media (max-width: 340px) {
+		.app-card {
+			padding-inline: var(--space-3);
+		}
+		.mode-switch button :global(svg) {
+			display: none;
+		}
+		.word-row input {
+			min-height: 0;
+		}
 	}
 </style>
