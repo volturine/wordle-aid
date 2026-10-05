@@ -76,6 +76,10 @@ jobs:
     environment:
       name: development
       url: https://dev.wordle-aid.com
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      RAPID_API_KEY: ${{ secrets.RAPID_API_KEY }}
     permissions:
       contents: read
       pull-requests: read
@@ -123,10 +127,6 @@ jobs:
           test -n "$RAPID_API_KEY"
           uv run pywrangler deploy --env dev
           printf '%s' "$RAPID_API_KEY" | npx wrangler secret put RAPID_API_KEY --env dev
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          RAPID_API_KEY: ${{ secrets.RAPID_API_KEY }}
 
       - name: Verify development deployment
         run: >-
@@ -142,6 +142,10 @@ jobs:
     environment:
       name: production
       url: https://wordle-aid.com
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      RAPID_API_KEY: ${{ secrets.RAPID_API_KEY }}
     permissions:
       contents: read
     steps:
@@ -176,10 +180,6 @@ jobs:
           test -n "$RAPID_API_KEY"
           uv run pywrangler deploy
           printf '%s' "$RAPID_API_KEY" | npx wrangler secret put RAPID_API_KEY
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          RAPID_API_KEY: ${{ secrets.RAPID_API_KEY }}
 
       - name: Verify production deployment
         run: >-
