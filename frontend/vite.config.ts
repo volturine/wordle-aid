@@ -1,22 +1,23 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { VitePWA } from 'vite-plugin-pwa'
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { defineConfig, loadEnv } from 'vite';
 
-export default {
+export default defineConfig(({ mode }) => ({
 	plugins: [
 		sveltekit(),
-		VitePWA({
+		SvelteKitPWA({
 			registerType: 'autoUpdate',
-			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,json,xml}']
-			},
+			injectRegister: null,
+			kit: { adapterFallback: '404.html' },
 			manifest: {
-				name: 'Wordle Aid - Your Daily Wordle Helper',
+				name: 'Wordle Aid — Find possible answers',
 				short_name: 'Wordle Aid',
-				description: 'Get hints and solutions for your daily Wordle puzzle. Your helpful Wordle assistant with word definitions and smart suggestions.',
+				description:
+					'Enter Wordle guesses, mark letter colors, and find possible answers with definitions.',
 				start_url: '/',
 				display: 'standalone',
-				background_color: '#ffffff',
-				theme_color: '#6aaa64',
+				background_color: '#f5f4ef',
+				theme_color: '#376a34',
 				orientation: 'portrait-primary',
 				scope: '/',
 				id: '/?source=pwa',
@@ -48,19 +49,19 @@ export default {
 						type: 'image/png',
 						purpose: 'any'
 					}
-				],
+				]
 			}
 		})
 	],
 	server: {
 		port: 3000,
-		allowedHosts: [
-			"localhost",
-			"wordle-aid.com",
-			"dev.wordle-aid.com"
-		],
+		allowedHosts: ['wordle-aid.com', 'dev.wordle-aid.com'],
 		proxy: {
-			'/api': 'http://localhost:8000'
+			// `uv run pywrangler dev` in worker/; override with WORKER_ORIGIN.
+			'/api': {
+				target: loadEnv(mode, '.', '').WORKER_ORIGIN || 'http://localhost:8787',
+				changeOrigin: true
+			}
 		}
-	},
-};
+	}
+}));

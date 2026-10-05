@@ -7,31 +7,46 @@
 
 		theme.update((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
 
-		requestAnimationFrame(() => {
-			document.body.classList.remove('theme-transitioning');
-		});
+		void document.body.offsetHeight;
+		requestAnimationFrame(() =>
+			requestAnimationFrame(() => document.body.classList.remove('theme-transitioning'))
+		);
 	}
 </script>
 
-<button on:click={toggleTheme} class="theme-switch">
+<button
+	onclick={toggleTheme}
+	class="theme-switch"
+	aria-label={$theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+	aria-pressed={$theme === 'dark'}
+	title={$theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+>
 	{#if $theme === 'light'}
-		<Moon />
+		<Moon aria-hidden="true" />
 	{:else}
-		<Sun />
+		<Sun aria-hidden="true" />
 	{/if}
 </button>
 
 <style>
 	.theme-switch {
-		background: none;
-		border: none;
-		cursor: pointer;
+		flex: 0 0 44px;
+		width: 44px;
 		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 40px;
-		height: 40px;
-		color: var(--color-primary);
+		background: var(--surface-raised);
+		color: var(--ink);
+	}
+
+	.theme-switch:hover:not(:disabled) {
+		background: var(--page);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.theme-switch {
+			transition-duration: 0.01ms;
+		}
 	}
 </style>
