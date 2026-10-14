@@ -55,15 +55,14 @@ def parse_constraints(body: object) -> list[dict]:
     return constraints
 
 
-def parse_page(body: dict) -> tuple[int, int, int]:
+def parse_page(body: dict) -> tuple[int, int]:
     limit = _page_number(body, 'limit', DEFAULT_LIMIT)
-    answer_offset = _page_number(body, 'answer_offset', 0)
-    guess_offset = _page_number(body, 'guess_offset', 0)
+    offset = _page_number(body, 'offset', 0)
     if not 1 <= limit <= MAX_LIMIT:
         raise ValueError(f'limit must be an integer from 1 to {MAX_LIMIT}')
-    if answer_offset > MAX_OFFSET or guess_offset > MAX_OFFSET:
+    if offset > MAX_OFFSET:
         raise ValueError('offset is too large')
-    return limit, answer_offset, guess_offset
+    return limit, offset
 
 
 def _page_number(body: dict, key: str, default: int) -> int:

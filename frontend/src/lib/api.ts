@@ -6,7 +6,7 @@ export const FILTER_PAGE_SIZE = 100;
 
 export async function filterWords(
 	rows: WordRow[],
-	options: { answerOffset?: number; guessOffset?: number; signal?: AbortSignal } = {}
+	options: { offset?: number; signal?: AbortSignal } = {}
 ): Promise<FilterResponse> {
 	const res = await fetch(`${API_BASE}/filter/five_letter_words`, {
 		method: 'POST',
@@ -14,8 +14,7 @@ export async function filterWords(
 		body: JSON.stringify({
 			constraints: constraintsFromRows(rows),
 			limit: FILTER_PAGE_SIZE,
-			answer_offset: options.answerOffset ?? 0,
-			guess_offset: options.guessOffset ?? 0
+			offset: options.offset ?? 0
 		}),
 		signal: options.signal
 	});

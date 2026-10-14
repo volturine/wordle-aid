@@ -65,7 +65,7 @@ async def handle(request, env) -> Response:
             return json_response({'detail': 'Invalid JSON body'}, 400)
         try:
             constraints = parse_constraints(body)
-            limit, answer_offset, guess_offset = parse_page(body)
+            limit, offset = parse_page(body)
         except ValueError as exc:
             return json_response({'detail': str(exc)}, 400)
 
@@ -74,7 +74,7 @@ async def handle(request, env) -> Response:
         except Exception:
             logger.exception('Dictionary is not ready')
             return json_response({'status': 'not_ready', 'detail': 'Word bank is unavailable'}, 503)
-        return json_response(helper.filter_page(constraints, limit, answer_offset, guess_offset))
+        return json_response(helper.filter_page(constraints, limit, offset))
 
     # --- Word definitions ---
     if path.startswith('/api/word-definition/') and method == 'GET':
