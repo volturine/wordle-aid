@@ -15,6 +15,8 @@ from workers import WorkerEntrypoint, Response
 
 import filter_service
 import word_definition_service
+from request_validation import MAX_BODY_CHARS, parse_constraints, parse_page
+from word_definition_service import DefinitionProviderError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,19 +38,43 @@ async def handle(request, env) -> Response:
 
     # --- Health ---
     if path == '/api/health' and method == 'GET':
-        return json_response({'status': 'ok', 'timestamp': datetime.datetime.now(datetime.UTC).isoformat()})
+        try:
+            helper = await filter_service.get_wordle_helper(env, 5)
+        except Exception:
+            logger.exception('Dictionary is not ready')
+            return json_response({'status': 'not_ready', 'detail': 'Word bank is unavailable'}, 503)
+        return json_response({
+            'status': 'ok',
+            'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
+            'bank_version': helper.version,
+            'guess_count': len(helper.dictionary),
+            'answer_count': len(helper.answers),
+        })
 
     # --- Word filter ---
     if path == '/api/filter/five_letter_words' and method == 'POST':
         try:
-            body = await request.json()
+            raw = await request.text()
         except Exception:
             return json_response({'detail': 'Invalid JSON body'}, 400)
-        if not isinstance(body, dict) or not isinstance(body.get('filter_spec'), dict):
-            return json_response({'detail': "Body must contain a 'filter_spec' object"}, 400)
+        if len(raw) > MAX_BODY_CHARS:
+            return json_response({'detail': 'Request body is too large'}, 400)
+        try:
+            body = json.loads(raw) if raw else None
+        except json.JSONDecodeError:
+            return json_response({'detail': 'Invalid JSON body'}, 400)
+        try:
+            constraints = parse_constraints(body)
+            limit, answer_offset, guess_offset = parse_page(body)
+        except ValueError as exc:
+            return json_response({'detail': str(exc)}, 400)
 
-        helper = await filter_service.get_wordle_helper(env, 5)
-        return json_response(helper.filter_characters(body['filter_spec']))
+        try:
+            helper = await filter_service.get_wordle_helper(env, 5)
+        except Exception:
+            logger.exception('Dictionary is not ready')
+            return json_response({'status': 'not_ready', 'detail': 'Word bank is unavailable'}, 503)
+        return json_response(helper.filter_page(constraints, limit, answer_offset, guess_offset))
 
     # --- Word definitions ---
     if path.startswith('/api/word-definition/') and method == 'GET':
@@ -58,6 +84,9 @@ async def handle(request, env) -> Response:
 
         try:
             result = await word_definition_service.get_word_definition(env, word)
+        except DefinitionProviderError:
+            logger.exception(f"Definition provider failed for '{word}'")
+            return json_response({'detail': 'Definition provider is unavailable'}, 502)
         except Exception:
             logger.exception(f"Failed to fetch definition for '{word}'")
             return json_response({'detail': 'Error fetching definition'}, 500)

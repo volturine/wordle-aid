@@ -1,62 +1,41 @@
-import type { WordRow, DictionaryResponse, FilterSpec } from './types';
-import { CharacterState } from './interfaces';
+import type { WordRow, DictionaryResponse, FilterResponse } from './types';
+import { constraintsFromRows } from './guessBoard';
 import { API_BASE } from './config';
 
-function convertWordRowToFilterSpec(rows: WordRow[]): FilterSpec {
-	const filter_spec: FilterSpec = {};
+export const FILTER_PAGE_SIZE = 100;
 
-	for (const row of rows) {
-		if (row.some((c) => c.value && !/^[a-z]$/i.test(c.value))) {
-			throw new Error('Guess cells can only contain letters A to Z');
-		}
-		const word = row.map((c) => c.value || '_').join('');
-		if (!/^[a-zA-Z_]{5}$/.test(word)) continue;
-
-		const correct_position: number[] = [];
-		const incorrect_letter: number[] = [];
-		const incorrect_position: number[] = [];
-
-		row.forEach((c, idx) => {
-			if (!c.value) return;
-			if (c.state === CharacterState.CORRECT_POSITION) {
-				correct_position.push(idx);
-			} else if (c.state === CharacterState.WRONG_POSITION) {
-				incorrect_position.push(idx);
-			} else {
-				incorrect_letter.push(idx);
-			}
-		});
-
-		if (correct_position.length || incorrect_letter.length || incorrect_position.length) {
-			filter_spec[word] = {
-				correct_position,
-				incorrect_letter,
-				incorrect_position
-			};
-		}
-	}
-
-	return filter_spec;
-}
-
-export async function filterWords(rows: WordRow[], signal?: AbortSignal): Promise<string[]> {
-	const filter_spec = convertWordRowToFilterSpec(rows);
+export async function filterWords(
+	rows: WordRow[],
+	options: { answerOffset?: number; guessOffset?: number; signal?: AbortSignal } = {}
+): Promise<FilterResponse> {
 	const res = await fetch(`${API_BASE}/filter/five_letter_words`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ filter_spec }),
-		signal
+		body: JSON.stringify({
+			constraints: constraintsFromRows(rows),
+			limit: FILTER_PAGE_SIZE,
+			answer_offset: options.answerOffset ?? 0,
+			guess_offset: options.guessOffset ?? 0
+		}),
+		signal: options.signal
 	});
 
 	if (!res.ok) {
-		throw new Error('Failed to filter words');
+		let detail = res.status === 503 ? 'Word bank is unavailable. Try again shortly.' : 'Failed to filter words';
+		try {
+			const body = await res.json();
+			if (typeof body?.detail === 'string') detail = body.detail;
+		} catch {
+			// Keep the fallback message when the server did not return JSON.
+		}
+		throw new Error(detail);
 	}
 
 	return res.json();
 }
 
-export async function getWordDefinition(word: string): Promise<DictionaryResponse> {
-	const res = await fetch(`${API_BASE}/word-definition/${word}`);
+export async function getWordDefinition(word: string, signal?: AbortSignal): Promise<DictionaryResponse> {
+	const res = await fetch(`${API_BASE}/word-definition/${word}`, { signal });
 
 	if (!res.ok) {
 		throw new Error('Failed to fetch word definition');

@@ -15,13 +15,13 @@ npx wrangler d1 create wordle-aid || true
 # Copy the printed database_id into wrangler.toml before continuing.
 
 echo
-echo "3. Applying schema + data to remote D1..."
-npx wrangler d1 execute wordle-aid --remote --file migrations/0001_words.sql
+echo "3. Applying schema + dictionary replacement to remote D1..."
+python3 scripts/apply_dictionary.py wordle-aid --remote
 npx wrangler d1 execute wordle-aid --remote --file migrations/0002_definitions.sql
 
 echo
 echo "4. Applying to LOCAL D1 (for 'pywrangler dev')..."
-npx wrangler d1 execute wordle-aid --local --file migrations/0001_words.sql
+python3 scripts/apply_dictionary.py wordle-aid --local
 npx wrangler d1 execute wordle-aid --local --file migrations/0002_definitions.sql
 
 echo

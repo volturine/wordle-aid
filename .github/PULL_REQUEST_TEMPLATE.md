@@ -22,7 +22,7 @@
 
 <!-- Required if this touches worker startup, D1 data, secrets, or CI/CD. -->
 
-- [ ] No data imports in CI (schema-only; data seeds are manual)
+- [ ] Dictionary replacement is version-gated and does not touch `definitions`
 - [ ] No new module-scope imports in `worker/src/` (startup CPU limit)
 - [ ] No secrets or user content added to logs/metrics/error responses
 

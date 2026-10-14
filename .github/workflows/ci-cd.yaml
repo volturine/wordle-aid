@@ -33,10 +33,12 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Build frontend
+      - name: Test and build frontend
         run: |
           cd frontend
-          npm install
+          npm ci
+          npm test
+          npm run svelte-check
           npm run build
 
       - name: Stage frontend for the worker
@@ -45,15 +47,21 @@ jobs:
           mkdir -p worker/public
           cp -R frontend/build/. worker/public/
 
-      - name: Syntax-check worker Python
-        run: python3 -m py_compile worker/src/*.py
+      - name: Test and syntax-check worker Python
+        run: |
+          python3 -m unittest discover -s worker/tests -v
+          python3 -m py_compile worker/src/*.py worker/scripts/*.py
 
       - name: Set up uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
       - name: Sync worker dependencies
         working-directory: worker
-        run: uv sync
+        run: uv sync --frozen
+
+      - name: Install pinned Wrangler
+        working-directory: worker
+        run: npm ci
 
       - name: Validate Cloudflare deployments
         working-directory: worker
@@ -106,7 +114,7 @@ jobs:
       - name: Build and stage frontend
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
           rm -rf ../worker/public
           mkdir -p ../worker/public
@@ -115,10 +123,13 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
-      - name: Apply schema to development D1
+      - name: Install pinned Wrangler
         working-directory: worker
-        run: |
-          npx wrangler d1 execute wordle-aid-dev --remote --file migrations/0000_schema.sql
+        run: npm ci
+
+      - name: Apply schema and dictionary to development D1
+        working-directory: worker
+        run: python3 scripts/apply_dictionary.py wordle-aid-dev --remote
 
       - name: Deploy development Worker
         working-directory: worker
@@ -159,7 +170,7 @@ jobs:
       - name: Build and stage frontend
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
           rm -rf ../worker/public
           mkdir -p ../worker/public
@@ -168,10 +179,13 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
-      - name: Apply schema to production D1
+      - name: Install pinned Wrangler
         working-directory: worker
-        run: |
-          npx wrangler d1 execute wordle-aid --remote --file migrations/0000_schema.sql
+        run: npm ci
+
+      - name: Apply schema and dictionary to production D1
+        working-directory: worker
+        run: python3 scripts/apply_dictionary.py wordle-aid --remote
 
       - name: Deploy production Worker
         working-directory: worker

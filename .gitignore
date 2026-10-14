@@ -3,7 +3,6 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 .env
 
 # Python
@@ -27,7 +26,6 @@ pip-delete-this-directory.txt
 # Cloudflare Worker
 worker/public/
 worker/.wrangler/
-worker/uv.lock
 worker/.venv/
 worker/.venv-workers/
 

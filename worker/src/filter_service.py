@@ -3,16 +3,26 @@ import logging
 from collections import Counter
 from functools import lru_cache
 
-from db import d1_all
+from bank_contract import bank_problem
+from db import d1_all, d1_first
 
 logger = logging.getLogger(__name__)
 
 
+class DictionaryNotReady(Exception):
+    """The isolate does not have a usable guess and answer bank."""
+
+
 class WordleHelper:
-    def __init__(self, dictionary: set[str], length: int = 5):
-        logger.info(f'Initializing WordleHelper for {length}-letter words ({len(dictionary)} words)')
+    def __init__(self, dictionary: set[str], answers: set[str], length: int = 5, version: str = ''):
+        logger.info(
+            f'Initializing WordleHelper for {length}-letter words '
+            f'({len(dictionary)} guesses, {len(answers)} likely answers)'
+        )
         self.length = length
         self.dictionary = dictionary
+        self.answers = answers
+        self.version = version
 
         # For each character, per-position sets of words containing it
         self.processed_dictionary: dict[str, list[set[str]]] = {}
@@ -74,38 +84,81 @@ class WordleHelper:
             return all(not any(candidate[pos] == letter for pos in positions) for letter, positions in excluded_at.items())
 
         if green:
-            candidates = set.intersection(
-                *[self.processed_dictionary[letter][pos] for pos, letter in green.items()],
-                set(self.dictionary),
-            )
+            pools = []
+            for pos, letter in green.items():
+                positions = self.processed_dictionary.get(letter)
+                if not positions:
+                    return set()
+                pools.append(positions[pos])
+            candidates = set.intersection(*pools)
         else:
-            candidates = set(self.dictionary)
+            candidates = self.dictionary
 
         return {word for word in candidates if matches(word)}
 
-    def filter_characters(self, filter_spec: dict) -> list[str]:
-        filtered = set(self.dictionary)
+    def filter_page(self, constraints: list[dict], limit: int, answer_offset: int, guess_offset: int) -> dict:
+        """Return one page of likely answers and one page of other accepted guesses."""
+        page = {
+            'answers': [],
+            'guesses': [],
+            'answer_total': 0,
+            'guess_total': 0,
+            'answer_offset': answer_offset,
+            'guess_offset': guess_offset,
+            'limit': limit,
+            'needs_clue': not constraints,
+            'bank_version': self.version,
+        }
+        if not constraints:
+            return page
 
-        for guess, feedback in filter_spec.items():
+        filtered = set(self.dictionary)
+        for constraint in constraints:
             filtered &= self._filter_characters(
-                guess,
-                incorrect_position=tuple(feedback.get('incorrect_position', [])),
-                correct_position=tuple(feedback.get('correct_position', [])),
-                incorrect_letter=tuple(feedback.get('incorrect_letter', [])),
+                constraint['guess'],
+                incorrect_position=tuple(constraint['incorrect_position']),
+                correct_position=tuple(constraint['correct_position']),
+                incorrect_letter=tuple(constraint['incorrect_letter']),
             )
 
-        return sorted(filtered)
+        answer_words = sorted(word for word in filtered if word in self.answers)
+        guess_words = sorted(word for word in filtered if word not in self.answers)
+        page['answers'] = answer_words[answer_offset:answer_offset + limit]
+        page['guesses'] = guess_words[guess_offset:guess_offset + limit]
+        page['answer_total'] = len(answer_words)
+        page['guess_total'] = len(guess_words)
+        return page
 
 
-# Per-isolate cache: key = word length
-_wordle_helpers: dict[int, WordleHelper] = {}
+# Per-isolate cache: length -> (bank version, helper). A new bank version reloads.
+_wordle_helpers: dict[int, tuple[str, WordleHelper]] = {}
 
 
 async def get_wordle_helper(env, length: int = 5) -> WordleHelper:
-    """Get or create the WordleHelper for a length, loading its dictionary from D1."""
-    if length not in _wordle_helpers:
-        logger.info(f'Loading dictionary for {length}-letter words from D1')
-        rows = await d1_all(env.DB, 'SELECT word FROM words WHERE length = ?', length)
-        words = {row['word'].lower() for row in rows}
-        _wordle_helpers[length] = WordleHelper(words, length)
-    return _wordle_helpers[length]
+    """Load the reviewed bank, refusing an empty or stale dictionary."""
+    meta = await d1_first(
+        env.DB,
+        'SELECT version, guess_count, answer_count FROM bank_meta WHERE id = 1',
+    )
+    if not isinstance(meta, dict) or not meta.get('version'):
+        raise DictionaryNotReady('missing bank metadata')
+    version = str(meta['version'])
+    cached = _wordle_helpers.get(length)
+    if cached and cached[0] == version:
+        return cached[1]
+
+    logger.info(f'Loading dictionary for {length}-letter words from D1')
+    rows = await d1_all(env.DB, 'SELECT word, is_answer FROM words WHERE length = ?', length)
+    words: set[str] = set()
+    answers: set[str] = set()
+    for row in rows:
+        word = str(row['word']).lower()
+        words.add(word)
+        if row.get('is_answer'):
+            answers.add(word)
+    problem = bank_problem(words, answers, int(meta['guess_count']), int(meta['answer_count']))
+    if problem:
+        raise DictionaryNotReady(problem)
+    helper = WordleHelper(words, answers, length, version)
+    _wordle_helpers[length] = (version, helper)
+    return helper
