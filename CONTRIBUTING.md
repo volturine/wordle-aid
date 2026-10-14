@@ -27,7 +27,7 @@ Please open an issue before large architectural changes so we can align on scope
 ```sh
 git clone https://github.com/volturine/wordle-aid.git
 cd wordle-aid/frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -37,7 +37,7 @@ worker locally and point your browser at it:
 ```sh
 cd ../worker
 uv sync
-uv run pywrangler dev          # http://localhost:8787 (local D1 + assets)
+uv run pywrangler dev --ip 0.0.0.0 --port 8787   # local D1 + assets; frontend uses the Tailscale host
 ```
 
 `npm run dev` proxies `/api` to that worker; set `WORKER_ORIGIN` if it runs

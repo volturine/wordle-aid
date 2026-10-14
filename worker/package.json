@@ -1,0 +1,7 @@
+{
+	"name": "wordle-aid-worker",
+	"private": true,
+	"devDependencies": {
+		"wrangler": "4.151.0"
+	}
+}

@@ -1,0 +1,13 @@
+# Reviewed additions to the likely-answer set.
+# These historical Wordle answers were missing from the previous dictionary.
+# They are ordinary English words already present in the guess list; this is
+# not a copy of the New York Times answer compilation.
+detox
+geeky
+inbox
+latte
+penne
+pesto
+ramen
+rehab
+wimpy

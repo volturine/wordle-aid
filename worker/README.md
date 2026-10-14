@@ -26,7 +26,7 @@ worker/
 ## Environments
 
 - **prod**: `wordle-aid.com` — deploys on push to `master` (GitHub Actions)
-- **dev**: `dev.wordle-aid.com` — deploys on PRs labeled `deploy-dev` (GitHub Actions), D1 is reset+reseeded each deploy
+- **dev**: `dev.wordle-aid.com` — deploys on PRs labeled `deploy-dev` (GitHub Actions). Schema is applied, and the dictionary is replaced only when the bank version changes. Definitions are left in place.
 - `env.dev` in wrangler.toml points at the `wordle-aid-dev` D1 database
 
 ## CI/CD (GitHub Actions)
@@ -34,8 +34,8 @@ worker/
 `.github/workflows/ci-cd.yaml` mirrors the scrapscache setup:
 
 - `validate` — frontend build, python syntax check, `wrangler deploy --dry-run` for both envs
-- `deploy-cloudflare-dev` — PRs labeled `deploy-dev`, resets dev D1 and redeploys
-- `deploy-cloudflare-production` — push to master, applies schema and redeploys
+- `deploy-cloudflare-dev` — PRs labeled `deploy-dev`, applies schema, replaces the dictionary when the bank version changes, and redeploys
+- `deploy-cloudflare-production` — push to master, applies schema, replaces the dictionary when the bank version changes, and redeploys
 
 Required repo secrets: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAPID_API_KEY`.
 
@@ -54,11 +54,12 @@ npx wrangler d1 create wordle-aid
 ## Local development
 
 ```bash
-cd frontend && npm install && npm run build
+cd frontend && npm ci && npm run build
 rm -rf ../worker/public && cp -R build ../worker/public   # or run ../worker/scripts/build_frontend.sh
 cd ../worker
 uv sync                 # first time only
-uv run pywrangler dev   # local D1 + assets on http://localhost:8787
+uv run pywrangler dev --ip 0.0.0.0 --port 8787
+# The frontend proxies /api to http://rolands-mac-mini.bee-justice.ts.net:8787.
 ```
 
 The frontend talks to `/api/...` (same origin) — no code changes needed.
@@ -81,11 +82,13 @@ cd worker && uv run pywrangler deploy
   so the worker uses a hand-rolled router on the `workers` SDK — same endpoints, same behavior.
 - `sqlite3`, `requests` and `httpx` are **not available** in the Python Workers
   runtime; D1 is accessed via `env.DB` (JS interop) and outbound HTTP via JS `fetch`.
-- `wrangler d1 execute --file` rejects `BEGIN TRANSACTION`/`COMMIT`, and re-imports
-  must not rewrite existing rows (D1 counts them in `rows_written`), so the
-  generated SQL uses `INSERT ... ON CONFLICT DO NOTHING` — importing twice writes 0 rows.
-- Data (words, definition seeds) is imported **once**, manually. CI only applies
-  `0000_schema.sql` (DDL, writes nothing at steady state); deploys never touch data.
+- `wrangler d1 execute --file` rejects `BEGIN TRANSACTION`/`COMMIT`.
+  `0001_words.sql` is insert-only and cannot remove old words.
+  `replace_dictionary.sql` deletes dictionary rows and inserts the current bank;
+  `apply_dictionary.py` runs it only when `bank_meta.version` changes.
+  Definitions are not part of that replacement.
+- Deploys apply schema and, when the version differs, the dictionary replacement.
+  They never import `0002_definitions.sql`.
 - The word dictionary is loaded from D1 once per isolate and cached in memory
   (`_wordle_helpers`), same behaviour as the old global singleton.
 - The Docker image, docker-compose, Watchtower label and DB volume are all

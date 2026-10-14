@@ -14,7 +14,7 @@ Visit [wordle-aid.com](https://wordle-aid.com).
 ## Features
 
 - **Smart filtering** — enter each guess with green/yellow/grey feedback and get
-  every remaining candidate word, handling duplicate letters correctly
+  likely answers first, then other accepted guesses, including duplicate letters
 - **Definitions** — look up any remaining candidate's definition on the spot
 - **PWA** — installable, offline-friendly shell; your game state lives in your browser
 - **No accounts, no tracking** — the server stores a static dictionary and a
@@ -33,7 +33,7 @@ One Cloudflare Worker does everything:
 
 Endpoints:
 
-- `POST /api/filter/five_letter_words` — feedback map → remaining candidate words
+- `POST /api/filter/five_letter_words` — guess constraints → likely answers and other accepted guesses
 - `GET /api/word-definition/{word}` — definition (D1 cache, then WordsAPI)
 - `GET /api/health` — healthcheck
 
@@ -44,11 +44,13 @@ Requirements: Node.js 22 (see [`.nvmrc`](.nvmrc)), Python 3.12+, [uv](https://do
 ```sh
 git clone https://github.com/volturine/wordle-aid.git
 cd wordle-aid/frontend
-npm install && npm run build       # static build
+npm ci && npm run build            # static build
 
 cd ../worker
 uv sync
-uv run pywrangler dev              # full stack on http://localhost:8787
+uv run pywrangler dev --ip 0.0.0.0 --port 8787
+# frontend dev proxies /api to http://rolands-mac-mini.bee-justice.ts.net:8787
+# override with WORKER_ORIGIN
 ```
 
 See [`worker/README.md`](worker/README.md) for seeding local D1 and

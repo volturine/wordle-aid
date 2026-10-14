@@ -12,13 +12,15 @@
 		bubblePos = { top: 0, bottom: 0, left: 0, maxHeight: 320 },
 		onClose,
 		onUseWord,
-		position = 'bottom'
+		position = 'bottom',
+		useGuessReason = ''
 	}: {
 		selectedWord: string;
 		bubblePos: { top: number; bottom: number; left: number; maxHeight: number };
 		onClose: (restoreFocus?: boolean) => void;
 		onUseWord?: (word: string) => void;
 		position: 'top' | 'bottom';
+		useGuessReason?: string;
 	} = $props();
 
 	let wordDefinition = $state<DictionaryResponse | null>(null);
@@ -42,6 +44,7 @@
 		}
 
 		let active = true;
+		const controller = new AbortController();
 		definitionError = '';
 		definitionLoading = true;
 		wordDefinition = null;
@@ -51,14 +54,14 @@
 			wordDefinition = cached;
 			definitionLoading = false;
 		} else {
-			getWordDefinition(requestedWord)
+			getWordDefinition(requestedWord, controller.signal)
 				.then((definition) => {
 					if (!active) return;
 					wordDefinition = definition;
 					setCachedDefinition(requestedWord, definition);
 				})
 				.catch((cause) => {
-					if (!active) return;
+					if (!active || (cause instanceof DOMException && cause.name === 'AbortError')) return;
 					console.error('Definition error:', cause);
 					definitionError =
 						'We couldn’t load this definition. Check your connection and try again.';
@@ -70,13 +73,14 @@
 
 		return () => {
 			active = false;
+			controller.abort();
 		};
 	});
 
 	$effect(() => {
 		if (!selectedWord || !bubbleEl) return;
 
-		bubbleEl.querySelector<HTMLButtonElement>('button')?.focus();
+		bubbleEl.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
 		const handleKeydown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
 				event.preventDefault();
@@ -115,6 +119,7 @@
 				<button
 					class="use-word-button"
 					aria-label={`Use ${selectedWord} as a guess`}
+					disabled={Boolean(useGuessReason)}
 					onclick={() => {
 						onUseWord?.(selectedWord);
 						onClose(false);
@@ -128,6 +133,9 @@
 			</div>
 
 			<h2 id="definition-title" class="word-title">{selectedWord}</h2>
+			{#if useGuessReason}
+				<p class="use-guess-reason">{useGuessReason}</p>
+			{/if}
 
 			{#if definitionLoading}
 				<p class="loading-text" role="status" aria-live="polite">Loading definition…</p>
@@ -205,6 +213,13 @@
 		font-size: 1.25rem;
 		line-height: 1.3;
 		text-transform: uppercase;
+	}
+
+	.use-guess-reason {
+		margin: 0 0 var(--space-3);
+		color: var(--muted);
+		font-size: 0.875rem;
+		line-height: 1.45;
 	}
 
 	.loading-text,

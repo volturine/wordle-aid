@@ -1,0 +1,13 @@
+{
+  "version": "2026.10.14",
+  "source": "tabatkins/wordle-list MIT + 12dicts 3of6game public domain",
+  "guess_count": 14855,
+  "answer_count": 4681,
+  "guess_sha256": "ba86911aea83d038d53c0999fe6cbe310c8f59d2b79626c73bd0cd0773adc320",
+  "answer_sha256": "a84eaa930556e93e19e0a2e3475ef2418c4e1ae6da15c248a71cd381ac431d74",
+  "inputs": {
+    "tabatkins-wordle-list.txt": "9df5dad1b44cf1b9e0fa7c3ebff94d69ff7efb59f8691ac88e74e1c7b3da121e",
+    "12dicts-3of6game.txt": "ad7b041b98e09a30ae9f4938ac24ca919a434b021a6b8582a69ad5d4863dabf0",
+    "answer-supplement.txt": "adc12b2e92d2f4730e88d0e7b87021bb47c90c1586743868efebb5e41c180132"
+  }
+}

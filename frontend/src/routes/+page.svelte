@@ -6,7 +6,9 @@
 	import ThemeSwitch from '#lib/components/ThemeSwitch.svelte';
 	import WordDefinitionOverlay from '#lib/components/WordDefinitionOverlay.svelte';
 	import { CharacterState } from '#lib/interfaces.js';
-	import { filterWords } from '#lib/api.js';
+	import { FILTER_PAGE_SIZE, filterWords } from '#lib/api.js';
+	import { backspaceAt, placeGuess, placementBlockReason } from '#lib/guessBoard.js';
+	import { readStorage, removeStorage, writeStorage } from '#lib/storage.js';
 	import type { WordRow } from '#lib/types.js';
 
 	const initialRow = (): WordRow =>
@@ -26,7 +28,13 @@
 	const RESULT_KEY = 'wordle-helper-result';
 
 	let wordRows = $state<WordRow[]>([initialRow()]);
-	let result = $state<string[]>([]);
+	let answers = $state<string[]>([]);
+	let guesses = $state<string[]>([]);
+	let answerTotal = $state(0);
+	let guessTotal = $state(0);
+	let answerOffset = $state(0);
+	let guessOffset = $state(0);
+	let bankVersion = $state('');
 	let error = $state('');
 	let validationError = $state('');
 	let feedbackStatus = $state('');
@@ -39,10 +47,12 @@
 	let overlayPosition = $state<'top' | 'bottom'>('bottom');
 	let wordTrigger: HTMLButtonElement | null = null;
 	let activeSearch: AbortController | null = null;
+	const useGuessReason = $derived(placementBlockReason(wordRows));
 
 	onMount(() => {
+		removeStorage(RESULT_KEY);
 		try {
-			const savedRows = localStorage.getItem(WORD_ROWS_KEY);
+			const savedRows = readStorage(WORD_ROWS_KEY);
 			const parsedRows: unknown = savedRows ? JSON.parse(savedRows) : null;
 			if (
 				Array.isArray(parsedRows) &&
@@ -59,35 +69,29 @@
 			) {
 				wordRows = parsedRows as WordRow[];
 			}
-
-			const savedResult = localStorage.getItem(RESULT_KEY);
-			const parsedResult: unknown = savedResult ? JSON.parse(savedResult) : null;
-			if (Array.isArray(parsedResult) && parsedResult.every((word) => typeof word === 'string')) {
-				result = parsedResult;
-				searchCompleted = result.length > 0;
-			}
 		} catch {
-			localStorage.removeItem(WORD_ROWS_KEY);
-			localStorage.removeItem(RESULT_KEY);
+			removeStorage(WORD_ROWS_KEY);
 		}
 	});
 
 	$effect(() => {
-		localStorage.setItem(WORD_ROWS_KEY, JSON.stringify(wordRows));
+		writeStorage(WORD_ROWS_KEY, JSON.stringify(wordRows));
 	});
 
-	$effect(() => {
-		localStorage.setItem(RESULT_KEY, JSON.stringify(result));
-	});
-
-	function invalidateSearch(clearResults = true) {
+	function invalidateSearch() {
 		activeSearch?.abort();
 		activeSearch = null;
 		loading = false;
-		if (clearResults) {
-			result = [];
-			searchCompleted = false;
-		}
+		error = '';
+		answers = [];
+		guesses = [];
+		answerTotal = 0;
+		guessTotal = 0;
+		answerOffset = 0;
+		guessOffset = 0;
+		bankVersion = '';
+		searchCompleted = false;
+		selectedWord = '';
 	}
 
 	function closeOverlay(restoreFocus = true) {
@@ -96,35 +100,14 @@
 	}
 
 	function handleUseWord(word: string) {
+		const placed = placeGuess(wordRows, word);
+		if (!placed.placed) return;
 		inputMode = 'writing';
-		const newRow = word
-			.toLowerCase()
-			.split('')
-			.map((value) => ({
-				value,
-				state: CharacterState.INCORRECT
-			}));
-		for (const row of wordRows) {
-			row.forEach((cell, index) => {
-				if (cell.value === newRow[index].value && cell.state === CharacterState.CORRECT_POSITION) {
-					newRow[index].state = CharacterState.CORRECT_POSITION;
-				}
-			});
-		}
-
-		let targetRowIndex = wordRows.findIndex((row) => row.every((cell) => !cell.value));
-		if (targetRowIndex >= 0) {
-			wordRows[targetRowIndex] = newRow;
-		} else if (wordRows.length < 6) {
-			targetRowIndex = wordRows.length;
-			wordRows = [...wordRows, newRow];
-		} else {
-			targetRowIndex = 0;
-		}
+		wordRows = placed.rows;
 		invalidateSearch();
 		requestAnimationFrame(() =>
 			document
-				.querySelector<HTMLInputElement>(`input[data-row="${targetRowIndex}"][data-char="0"]`)
+				.querySelector<HTMLInputElement>(`input[data-row="${placed.focusRow}"][data-char="0"]`)
 				?.focus()
 		);
 	}
@@ -172,16 +155,13 @@
 		}
 		if (event.key === 'Enter') event.preventDefault();
 		if (event.key === 'Backspace') {
-			const cell = wordRows[rowIndex][columnIndex];
-			if (!cell.value && columnIndex > 0) {
-				wordRows[rowIndex][columnIndex - 1].value = '';
-				document
-					.querySelector<HTMLInputElement>(
-						`input[data-row="${rowIndex}"][data-char="${columnIndex - 1}"]`
-					)
-					?.focus();
-				event.preventDefault();
-			}
+			const applied = backspaceAt(wordRows[rowIndex], columnIndex);
+			if (!applied.changed) return;
+			invalidateSearch();
+			document
+				.querySelector<HTMLInputElement>(`input[data-row="${rowIndex}"][data-char="${applied.focus}"]`)
+				?.focus();
+			event.preventDefault();
 		}
 	}
 
@@ -216,7 +196,6 @@
 		invalidateSearch();
 		inputMode = 'writing';
 		wordRows = [initialRow()];
-		result = [];
 		searchCompleted = false;
 		error = '';
 		validationError = '';
@@ -264,25 +243,65 @@
 			return;
 		}
 
-		activeSearch?.abort();
+		invalidateSearch();
 		const controller = new AbortController();
 		activeSearch = controller;
 		loading = true;
-		searchCompleted = false;
-		error = '';
 		validationError = '';
 		invalidCell = null;
-		result = [];
 
 		try {
-			const words = await filterWords(wordRows, controller.signal);
+			const page = await filterWords(wordRows, { signal: controller.signal });
 			if (activeSearch !== controller) return;
-			result = words;
+			answers = page.answers;
+			guesses = page.guesses;
+			answerTotal = page.answer_total;
+			guessTotal = page.guess_total;
+			answerOffset = page.answer_offset;
+			guessOffset = page.guess_offset;
+			bankVersion = page.bank_version;
 			searchCompleted = true;
+			if (page.needs_clue) {
+				error = 'Mark at least one letter, then filter again.';
+				searchCompleted = false;
+			}
 		} catch (cause) {
 			if (controller.signal.aborted) return;
 			console.error('Filter error:', cause);
-			error = 'We couldn’t reach the word list. Check your connection and try again.';
+			error = cause instanceof Error ? cause.message : 'We couldn’t reach the word list. Check your connection and try again.';
+		} finally {
+			if (activeSearch === controller) {
+				activeSearch = null;
+				loading = false;
+			}
+		}
+	}
+
+	async function changePage(kind: 'answers' | 'guesses', nextOffset: number) {
+		const controller = new AbortController();
+		activeSearch?.abort();
+		activeSearch = controller;
+		loading = true;
+		error = '';
+		const nextAnswerOffset = kind === 'answers' ? nextOffset : answerOffset;
+		const nextGuessOffset = kind === 'guesses' ? nextOffset : guessOffset;
+		try {
+			const page = await filterWords(wordRows, {
+				answerOffset: nextAnswerOffset,
+				guessOffset: nextGuessOffset,
+				signal: controller.signal
+			});
+			if (activeSearch !== controller) return;
+			answers = page.answers;
+			guesses = page.guesses;
+			answerTotal = page.answer_total;
+			guessTotal = page.guess_total;
+			answerOffset = page.answer_offset;
+			guessOffset = page.guess_offset;
+			bankVersion = page.bank_version;
+		} catch (cause) {
+			if (controller.signal.aborted) return;
+			error = cause instanceof Error ? cause.message : 'We couldn’t reach the word list. Check your connection and try again.';
 		} finally {
 			if (activeSearch === controller) {
 				activeSearch = null;
@@ -430,9 +449,10 @@
 
 		{#if loading}
 			<p class="status-message" role="status" aria-live="polite">Finding possible answers…</p>
-		{:else if error}
+		{/if}
+		{#if error}
 			<p class="error-message" role="alert">{error}</p>
-		{:else if searchCompleted && result.length === 0}
+		{:else if searchCompleted && answerTotal + guessTotal === 0}
 			<section
 				class="empty-state"
 				aria-live="polite"
@@ -444,28 +464,97 @@
 		{:else if searchCompleted}
 			<section
 				class="results"
-				aria-busy="false"
+				aria-busy={loading}
 				in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
 			>
 				<p class="results-count" role="status" aria-live="polite">
-					Found {result.length}
-					{result.length === 1 ? 'possible answer' : 'possible answers'}.
+					{answerTotal}
+					{answerTotal === 1 ? 'likely answer' : 'likely answers'} and {guessTotal}
+					{guessTotal === 1 ? 'other allowed guess' : 'other allowed guesses'}.
+					{#if bankVersion}Word bank {bankVersion}.{/if}
 				</p>
-				<ul class="word-list" aria-label="Possible answers">
-					{#each result as word (word)}
-						<li>
-							<button
-								type="button"
-								class="word-result"
-								aria-haspopup="dialog"
-								aria-expanded={selectedWord === word}
-								onclick={(event) => showOverlay(word, event)}
-							>
-								{word}
-							</button>
-						</li>
-					{/each}
-				</ul>
+
+				<div class="results-section">
+					<h2>Likely answers</h2>
+					{#if answers.length === 0}
+						<p class="results-note">No likely answers match these colors.</p>
+					{:else}
+						<ul class="word-list" aria-label="Likely answers">
+							{#each answers as word (word)}
+								<li>
+									<button
+										type="button"
+										class="word-result"
+										aria-haspopup="dialog"
+										aria-expanded={selectedWord === word}
+										onclick={(event) => showOverlay(word, event)}
+									>
+										{word}
+									</button>
+								</li>
+							{/each}
+						</ul>
+						{#if answerTotal > FILTER_PAGE_SIZE}
+							<div class="pager">
+								<button
+									type="button"
+									disabled={answerOffset === 0 || loading}
+									onclick={() => changePage('answers', Math.max(0, answerOffset - FILTER_PAGE_SIZE))}
+								>
+									Previous answers
+								</button>
+								<button
+									type="button"
+									disabled={answerOffset + answers.length >= answerTotal || loading}
+									onclick={() => changePage('answers', answerOffset + FILTER_PAGE_SIZE)}
+								>
+									Next answers
+								</button>
+							</div>
+						{/if}
+					{/if}
+				</div>
+
+				<div class="results-section">
+					<h2>Other allowed guesses</h2>
+					{#if guesses.length === 0}
+						<p class="results-note">No other accepted guesses match these colors.</p>
+					{:else}
+						<ul class="word-list" aria-label="Other allowed guesses">
+							{#each guesses as word (word)}
+								<li>
+									<button
+										type="button"
+										class="word-result"
+										aria-haspopup="dialog"
+										aria-expanded={selectedWord === word}
+										onclick={(event) => showOverlay(word, event)}
+									>
+										{word}
+									</button>
+								</li>
+							{/each}
+						</ul>
+						{#if guessTotal > FILTER_PAGE_SIZE}
+							<div class="pager">
+								<button
+									type="button"
+									disabled={guessOffset === 0 || loading}
+									onclick={() => changePage('guesses', Math.max(0, guessOffset - FILTER_PAGE_SIZE))}
+								>
+									Previous guesses
+								</button>
+								<button
+									type="button"
+									disabled={guessOffset + guesses.length >= guessTotal || loading}
+									onclick={() => changePage('guesses', guessOffset + FILTER_PAGE_SIZE)}
+								>
+									Next guesses
+								</button>
+							</div>
+						{/if}
+					{/if}
+				</div>
 			</section>
 		{/if}
 
@@ -475,12 +564,17 @@
 			position={overlayPosition}
 			onClose={closeOverlay}
 			onUseWord={handleUseWord}
+			useGuessReason={useGuessReason}
 		/>
 
 		<footer class="footer">
 			<p>
 				Wordle is a trademark of The New York Times Company. Wordle Aid is an independent puzzle
 				helper and is not affiliated with or endorsed by The New York Times.
+			</p>
+			<p>
+				Accepted guesses are the MIT-licensed tabatkins/wordle-list snapshot. Likely answers are the
+				public-domain 12dicts 3of6game words in that list, plus a small reviewed supplement.
 			</p>
 		</footer>
 	</main>
@@ -788,10 +882,28 @@
 	}
 
 	.empty-state p,
-	.results-count {
+	.results-count,
+	.results-note {
 		margin: 0;
 		color: var(--muted);
 		line-height: 1.5;
+	}
+
+	.results-section {
+		margin-top: var(--space-6);
+	}
+
+	.results-section h2 {
+		margin: 0;
+		font-size: 1.25rem;
+		line-height: 1.3;
+	}
+
+	.pager {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin-top: var(--space-4);
 	}
 
 	.word-list {
@@ -834,6 +946,10 @@
 		margin: 0;
 	}
 
+	.footer p + p {
+		margin-top: var(--space-2);
+	}
+
 	@media (max-width: 520px) {
 		.page-shell {
 			padding: 0;
@@ -868,7 +984,7 @@
 			max-width: none;
 		}
 		.word-row {
-			grid-template-columns: 36px minmax(0, 1fr) 36px;
+			grid-template-columns: 44px minmax(0, 1fr) 44px;
 		}
 		.word-row,
 		.word-row-content {
@@ -879,15 +995,30 @@
 		}
 	}
 
+	@media (max-width: 380px) {
+		.word-row {
+			grid-template-columns: max-content 44px;
+		}
+
+		.word-row-content {
+			grid-column: 1;
+			width: max-content;
+			grid-template-columns: repeat(5, 44px);
+		}
+
+		.word-row input {
+			width: 44px;
+			min-width: 44px;
+			height: 44px;
+		}
+	}
+
 	@media (max-width: 340px) {
 		.app-card {
 			padding-inline: var(--space-3);
 		}
 		.mode-switch button :global(svg) {
 			display: none;
-		}
-		.word-row input {
-			min-height: 0;
 		}
 	}
 </style>

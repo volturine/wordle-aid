@@ -83,11 +83,12 @@ export default defineConfig(({ mode }) => ({
 	],
 	server: {
 		port: 3000,
-		allowedHosts: ['wordle-aid.com', 'dev.wordle-aid.com'],
+		host: true,
+		allowedHosts: ['wordle-aid.com', 'dev.wordle-aid.com', 'rolands-mac-mini.bee-justice.ts.net'],
 		proxy: {
-			// `uv run pywrangler dev` in worker/; override with WORKER_ORIGIN.
+			// `uv run pywrangler dev --ip 0.0.0.0 --port 8787` in worker/; override with WORKER_ORIGIN.
 			'/api': {
-				target: loadEnv(mode, '.', '').WORKER_ORIGIN || 'http://localhost:8787',
+				target: loadEnv(mode, '.', '').WORKER_ORIGIN || 'http://rolands-mac-mini.bee-justice.ts.net:8787',
 				changeOrigin: true
 			}
 		}

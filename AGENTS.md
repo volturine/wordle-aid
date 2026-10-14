@@ -17,13 +17,13 @@ Visit [wordle-aid.com](https://wordle-aid.com). Development preview at [dev.word
 
 ```bash
 # Frontend
-cd frontend && npm install && npm run dev   # dev server
+cd frontend && npm ci && npm run dev       # dev server
 npm run build                               # production static build -> frontend/build
 
 # Worker (Python)
 cd worker
-uv sync                                     # install workers-py + workers-runtime-sdk
-uv run pywrangler dev                       # local dev (local D1 + assets) on :8787
+uv sync --frozen                            # install workers-py + workers-runtime-sdk
+uv run pywrangler dev --ip 0.0.0.0 --port 8787  # local D1 + assets; frontend proxies via the Tailscale host
 uv run pywrangler deploy                    # deploy production (wordle-aid.com)
 uv run pywrangler deploy --env dev          # deploy development (dev.wordle-aid.com)
 
@@ -36,17 +36,18 @@ Full frontend build + staging into the worker: `worker/scripts/build_frontend.sh
 ## Deployment model (GitHub Actions, mirrors scrapscache)
 
 - Every PR: `validate` — frontend build, python syntax check, `wrangler deploy --dry-run` for both envs
-- PR labeled `deploy-dev`: `deploy-cloudflare-dev` — redeploys `dev.wordle-aid.com` (schema-only D1 apply, no data import)
+- PR labeled `deploy-dev`: `deploy-cloudflare-dev` — replaces the development dictionary when the bank version differs, then redeploys `dev.wordle-aid.com`
 - Push to `master`: `deploy-cloudflare-production` — deploys `wordle-aid.com` + post-deploy healthcheck on `/api/health`
 - Required repo secrets: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAPID_API_KEY`
 - `master` is the source of truth; never commit directly — open a PR
 
 ## D1 data policy (read before touching data)
 
-- `words` is a **static dictionary** (15,921 rows at `length = 5`) imported **once**, manually, via `worker/scripts/migrate_to_d1.sh`. CI deploys never import data — only `migrations/0000_schema.sql`.
+- `words` is the **accepted-guess bank**. Rows with `is_answer = 1` are the smaller **likely-answer** set. Counts and provenance live in `database/bank/bank.json`. Rebuild with `python3 worker/scripts/build_word_bank.py`, then `python3 worker/scripts/export_db.py`.
+- Deploys call `worker/scripts/apply_dictionary.py`. It applies `0000_schema.sql`, adds `is_answer` when missing, and runs `replace_dictionary.sql` only when `bank_meta.version` differs. That replacement deletes dictionary rows and inserts the current bank. It does not touch `definitions`.
 - `definitions` is a runtime cache: on a miss the worker fetches RapidAPI and writes the row. Never bulk-import definitions in CI; it would clobber live cache entries with stale local data.
-- All generated seed SQL uses `INSERT ... ON CONFLICT (word) DO NOTHING`: re-importing writes 0 rows. D1 counts every rewritten row in `rows_written`, and the free tier allows 100k/day.
-- Regenerate seed SQL with `worker/scripts/export_db.py` after changing `database/*.db` (default: 5-letter words; pass `--lengths 3 4 5 ...` for more).
+- `0001_words.sql` is insert-only and cannot remove obsolete words. Do not treat it as a bank update.
+- D1 counts every rewritten row in `rows_written`, and the free tier allows 100k/day. A replacement is about 30k writes, so it stays gated on the bank version.
 
 ## Python Workers runtime constraints (hard rules)
 
@@ -58,7 +59,7 @@ Full frontend build + staging into the worker: `worker/scripts/build_frontend.sh
 ## Endpoints
 
 - `GET /api/health` — healthcheck (CI verifies prod after deploy)
-- `POST /api/filter/five_letter_words` — body `{"filter_spec": {"GUESS": {"correct_position": [...], "incorrect_position": [...], "incorrect_letter": [...]}}}` → remaining candidate words
+- `POST /api/filter/five_letter_words` — body `{"constraints": [{"guess": "crane", "correct_position": [0], "incorrect_position": [], "incorrect_letter": [1, 2, 3, 4]}]}` → one page of likely answers and one page of other accepted guesses
 - `GET /api/word-definition/{word}` — D1 cache first, then RapidAPI (`RAPID_API_KEY` secret), then cached to D1
 
 The frontend calls `/api/...` same-origin; never introduce a separate API origin or CORS setup.
