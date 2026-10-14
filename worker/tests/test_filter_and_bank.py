@@ -203,6 +203,44 @@ class CacheTests(unittest.TestCase):
 
         self.assertEqual(asyncio.run(scenario()), ({'definitions': []}, {'definitions': []}))
 
+    def test_unfollowed_failure_is_observed(self):
+        import asyncio
+        import gc
+
+        async def scenario():
+            flight = InFlight()
+            future, leader = flight.start('gone')
+            self.assertTrue(leader)
+            flight.fail('gone', RuntimeError('down'))
+            self.assertFalse(future._log_traceback)
+            del future
+            gc.collect()
+            await asyncio.sleep(0)
+
+        loop = asyncio.new_event_loop()
+        reports = []
+        loop.set_exception_handler(lambda _loop, context: reports.append(context.get('message', '')))
+        try:
+            loop.run_until_complete(scenario())
+        finally:
+            loop.close()
+        self.assertEqual(reports, [])
+
+    def test_followers_still_receive_the_failure(self):
+        import asyncio
+
+        async def scenario():
+            flight = InFlight()
+            _leader, leader = flight.start('gone')
+            follower, other = flight.start('gone')
+            self.assertTrue(leader)
+            self.assertFalse(other)
+            flight.fail('gone', RuntimeError('down'))
+            with self.assertRaisesRegex(RuntimeError, 'down'):
+                await follower
+
+        asyncio.run(scenario())
+
 
 if __name__ == '__main__':
     unittest.main()

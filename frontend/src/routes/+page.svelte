@@ -995,6 +995,24 @@
 		}
 	}
 
+	@media (max-width: 380px) {
+		.word-row {
+			grid-template-columns: max-content 44px;
+		}
+
+		.word-row-content {
+			grid-column: 1;
+			width: max-content;
+			grid-template-columns: repeat(5, 44px);
+		}
+
+		.word-row input {
+			width: 44px;
+			min-width: 44px;
+			height: 44px;
+		}
+	}
+
 	@media (max-width: 340px) {
 		.app-card {
 			padding-inline: var(--space-3);

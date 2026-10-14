@@ -78,6 +78,11 @@ class InFlight:
         future = self._waiters.pop(key)
         if not future.done():
             future.set_exception(error)
+        # The leader raises `error` and does not await this future. Retrieve the
+        # exception so an unfollowed failure is not reported as never retrieved.
+        # A follower that awaits the same future still receives it.
+        if not future.cancelled():
+            future.exception()
 
 
 def classify_definition(status: int, payload) -> str:

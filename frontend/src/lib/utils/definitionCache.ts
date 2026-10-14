@@ -1,21 +1,28 @@
 import type { DictionaryResponse } from '#lib/types.js';
 
 const CACHE_KEY = 'word_definitions_cache';
-const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const HIT_DURATION = 7 * 24 * 60 * 60 * 1000;
+const MISS_DURATION = 15 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 200;
 
 interface CacheEntry {
     data: DictionaryResponse;
     timestamp: number;
+    ttl?: number;
 }
 
 interface Cache {
     [word: string]: CacheEntry;
 }
 
+function entryDuration(entry: CacheEntry): number {
+    if (entry.ttl !== undefined) return entry.ttl;
+    return entry.data.definitions.length > 0 ? HIT_DURATION : MISS_DURATION;
+}
+
 export function pruneDefinitionCache(cache: Cache, now = Date.now()): Cache {
     for (const word of Object.keys(cache)) {
-        if (now - cache[word].timestamp >= CACHE_DURATION) delete cache[word];
+        if (now - cache[word].timestamp >= entryDuration(cache[word])) delete cache[word];
     }
     const oldest = Object.entries(cache).sort((left, right) => left[1].timestamp - right[1].timestamp);
     while (oldest.length > MAX_CACHE_ENTRIES) {
@@ -56,7 +63,8 @@ export function setCachedDefinition(word: string, data: DictionaryResponse): voi
         const cache = pruneDefinitionCache(JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'));
         cache[word.toLowerCase()] = {
             data,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            ttl: data.definitions.length > 0 ? HIT_DURATION : MISS_DURATION
         };
         pruneDefinitionCache(cache);
         localStorage.setItem(CACHE_KEY, JSON.stringify(cache));

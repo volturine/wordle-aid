@@ -15,3 +15,26 @@ test('prune drops expired entries and the oldest extras', () => {
 	assert.equal(pruned.w0, undefined);
 	assert.ok(pruned.w200);
 });
+
+test('an empty definition expires after 15 minutes and a real one lasts seven days', () => {
+	const now = 1_000_000;
+	const minute = 60 * 1000;
+	const day = 24 * 60 * minute;
+	const cache = {
+		miss: { data: { word: 'miss', definitions: [] }, timestamp: now - 16 * minute },
+		freshMiss: { data: { word: 'fresh', definitions: [] }, timestamp: now - 14 * minute },
+		hit: {
+			data: { word: 'hit', definitions: [{ partOfSpeech: 'noun', definition: 'a bird' }] },
+			timestamp: now - 2 * day
+		},
+		staleHit: {
+			data: { word: 'stale', definitions: [{ partOfSpeech: 'noun', definition: 'old' }] },
+			timestamp: now - 8 * day
+		}
+	};
+	const pruned = pruneDefinitionCache(cache, now);
+	assert.equal(pruned.miss, undefined);
+	assert.ok(pruned.freshMiss);
+	assert.ok(pruned.hit);
+	assert.equal(pruned.staleHit, undefined);
+});
