@@ -8,6 +8,7 @@
 	import { CharacterState } from '#lib/interfaces.js';
 	import { FILTER_PAGE_SIZE, filterWords } from '#lib/api.js';
 	import { backspaceAt, placeGuess, placementBlockReason } from '#lib/guessBoard.js';
+	import { paginationItems } from '#lib/pagination.js';
 	import { readStorage, removeStorage, writeStorage } from '#lib/storage.js';
 	import type { WordRow } from '#lib/types.js';
 
@@ -28,12 +29,9 @@
 	const RESULT_KEY = 'wordle-helper-result';
 
 	let wordRows = $state<WordRow[]>([initialRow()]);
-	let answers = $state<string[]>([]);
-	let guesses = $state<string[]>([]);
-	let answerTotal = $state(0);
-	let guessTotal = $state(0);
-	let answerOffset = $state(0);
-	let guessOffset = $state(0);
+	let words = $state<string[]>([]);
+	let total = $state(0);
+	let offset = $state(0);
 	let bankVersion = $state('');
 	let error = $state('');
 	let validationError = $state('');
@@ -48,6 +46,9 @@
 	let wordTrigger: HTMLButtonElement | null = null;
 	let activeSearch: AbortController | null = null;
 	const useGuessReason = $derived(placementBlockReason(wordRows));
+	const currentPage = $derived(Math.floor(offset / FILTER_PAGE_SIZE) + 1);
+	const totalPages = $derived(total > 0 ? Math.ceil(total / FILTER_PAGE_SIZE) : 0);
+	const pageItems = $derived(paginationItems(currentPage, totalPages));
 
 	onMount(() => {
 		removeStorage(RESULT_KEY);
@@ -83,12 +84,9 @@
 		activeSearch = null;
 		loading = false;
 		error = '';
-		answers = [];
-		guesses = [];
-		answerTotal = 0;
-		guessTotal = 0;
-		answerOffset = 0;
-		guessOffset = 0;
+		words = [];
+		total = 0;
+		offset = 0;
 		bankVersion = '';
 		searchCompleted = false;
 		selectedWord = '';
@@ -253,12 +251,9 @@
 		try {
 			const page = await filterWords(wordRows, { signal: controller.signal });
 			if (activeSearch !== controller) return;
-			answers = page.answers;
-			guesses = page.guesses;
-			answerTotal = page.answer_total;
-			guessTotal = page.guess_total;
-			answerOffset = page.answer_offset;
-			guessOffset = page.guess_offset;
+			words = page.words;
+			total = page.total;
+			offset = page.offset;
 			bankVersion = page.bank_version;
 			searchCompleted = true;
 			if (page.needs_clue) {
@@ -277,27 +272,22 @@
 		}
 	}
 
-	async function changePage(kind: 'answers' | 'guesses', nextOffset: number) {
+	async function changePage(nextOffset: number) {
+		if (nextOffset === offset) return;
 		const controller = new AbortController();
 		activeSearch?.abort();
 		activeSearch = controller;
 		loading = true;
 		error = '';
-		const nextAnswerOffset = kind === 'answers' ? nextOffset : answerOffset;
-		const nextGuessOffset = kind === 'guesses' ? nextOffset : guessOffset;
 		try {
 			const page = await filterWords(wordRows, {
-				answerOffset: nextAnswerOffset,
-				guessOffset: nextGuessOffset,
+				offset: nextOffset,
 				signal: controller.signal
 			});
 			if (activeSearch !== controller) return;
-			answers = page.answers;
-			guesses = page.guesses;
-			answerTotal = page.answer_total;
-			guessTotal = page.guess_total;
-			answerOffset = page.answer_offset;
-			guessOffset = page.guess_offset;
+			words = page.words;
+			total = page.total;
+			offset = page.offset;
 			bankVersion = page.bank_version;
 		} catch (cause) {
 			if (controller.signal.aborted) return;
@@ -452,7 +442,7 @@
 		{/if}
 		{#if error}
 			<p class="error-message" role="alert">{error}</p>
-		{:else if searchCompleted && answerTotal + guessTotal === 0}
+		{:else if searchCompleted && total === 0}
 			<section
 				class="empty-state"
 				aria-live="polite"
@@ -468,93 +458,44 @@
 				in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
 			>
 				<p class="results-count" role="status" aria-live="polite">
-					{answerTotal}
-					{answerTotal === 1 ? 'likely answer' : 'likely answers'} and {guessTotal}
-					{guessTotal === 1 ? 'other allowed guess' : 'other allowed guesses'}.
+					{total}
+					{total === 1 ? 'matching word' : 'matching words'}.
 					{#if bankVersion}Word bank {bankVersion}.{/if}
 				</p>
-
-				<div class="results-section">
-					<h2>Likely answers</h2>
-					{#if answers.length === 0}
-						<p class="results-note">No likely answers match these colors.</p>
-					{:else}
-						<ul class="word-list" aria-label="Likely answers">
-							{#each answers as word (word)}
-								<li>
-									<button
-										type="button"
-										class="word-result"
-										aria-haspopup="dialog"
-										aria-expanded={selectedWord === word}
-										onclick={(event) => showOverlay(word, event)}
-									>
-										{word}
-									</button>
-								</li>
-							{/each}
-						</ul>
-						{#if answerTotal > FILTER_PAGE_SIZE}
-							<div class="pager">
+				<ul class="word-list" aria-label="Matching words">
+					{#each words as word (word)}
+						<li>
+							<button
+								type="button"
+								class="word-result"
+								aria-haspopup="dialog"
+								aria-expanded={selectedWord === word}
+								onclick={(event) => showOverlay(word, event)}
+							>
+								{word}
+							</button>
+						</li>
+					{/each}
+				</ul>
+				{#if totalPages > 1}
+					<nav class="pager" aria-label="Result pages">
+						{#each pageItems as item, index (item === 'gap' ? `gap-${index}` : item)}
+							{#if item === 'gap'}
+								<span class="pager-gap" aria-hidden="true">…</span>
+							{:else}
 								<button
 									type="button"
-									disabled={answerOffset === 0 || loading}
-									onclick={() => changePage('answers', Math.max(0, answerOffset - FILTER_PAGE_SIZE))}
+									aria-current={item === currentPage ? 'page' : undefined}
+									aria-label={`Page ${item}`}
+									disabled={loading}
+									onclick={() => changePage((item - 1) * FILTER_PAGE_SIZE)}
 								>
-									Previous answers
+									{item}
 								</button>
-								<button
-									type="button"
-									disabled={answerOffset + answers.length >= answerTotal || loading}
-									onclick={() => changePage('answers', answerOffset + FILTER_PAGE_SIZE)}
-								>
-									Next answers
-								</button>
-							</div>
-						{/if}
-					{/if}
-				</div>
-
-				<div class="results-section">
-					<h2>Other allowed guesses</h2>
-					{#if guesses.length === 0}
-						<p class="results-note">No other accepted guesses match these colors.</p>
-					{:else}
-						<ul class="word-list" aria-label="Other allowed guesses">
-							{#each guesses as word (word)}
-								<li>
-									<button
-										type="button"
-										class="word-result"
-										aria-haspopup="dialog"
-										aria-expanded={selectedWord === word}
-										onclick={(event) => showOverlay(word, event)}
-									>
-										{word}
-									</button>
-								</li>
-							{/each}
-						</ul>
-						{#if guessTotal > FILTER_PAGE_SIZE}
-							<div class="pager">
-								<button
-									type="button"
-									disabled={guessOffset === 0 || loading}
-									onclick={() => changePage('guesses', Math.max(0, guessOffset - FILTER_PAGE_SIZE))}
-								>
-									Previous guesses
-								</button>
-								<button
-									type="button"
-									disabled={guessOffset + guesses.length >= guessTotal || loading}
-									onclick={() => changePage('guesses', guessOffset + FILTER_PAGE_SIZE)}
-								>
-									Next guesses
-								</button>
-							</div>
-						{/if}
-					{/if}
-				</div>
+							{/if}
+						{/each}
+					</nav>
+				{/if}
 			</section>
 		{/if}
 
@@ -573,8 +514,7 @@
 				helper and is not affiliated with or endorsed by The New York Times.
 			</p>
 			<p>
-				Accepted guesses are the MIT-licensed tabatkins/wordle-list snapshot. Likely answers are the
-				public-domain 12dicts 3of6game words in that list, plus a small reviewed supplement.
+				The word list is the MIT-licensed tabatkins/wordle-list snapshot.
 			</p>
 		</footer>
 	</main>
@@ -889,21 +829,29 @@
 		line-height: 1.5;
 	}
 
-	.results-section {
-		margin-top: var(--space-6);
-	}
-
-	.results-section h2 {
-		margin: 0;
-		font-size: 1.25rem;
-		line-height: 1.3;
-	}
-
 	.pager {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		gap: var(--space-2);
 		margin-top: var(--space-4);
+	}
+
+	.pager button {
+		min-width: 44px;
+		padding: 0 var(--space-2);
+	}
+
+	.pager button[aria-current='page'] {
+		border-color: var(--green);
+		background: var(--green);
+		color: var(--action-ink);
+	}
+
+	.pager-gap {
+		min-width: 1.5rem;
+		color: var(--muted);
+		text-align: center;
 	}
 
 	.word-list {

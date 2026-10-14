@@ -63,12 +63,10 @@ class FilterTests(unittest.TestCase):
                 constraint('crane', yellow=(1,)),
             ],
             limit=100,
-            answer_offset=0,
-            guess_offset=0,
+            offset=0,
         )
-        self.assertEqual(page['answers'], ['coral'])
-        self.assertEqual(page['guesses'], [])
-        self.assertEqual(page['answer_total'], 1)
+        self.assertEqual(page['words'], ['coral'])
+        self.assertEqual(page['total'], 1)
         self.assertFalse(page['needs_clue'])
 
     def test_partial_clue_keeps_unknown_squares(self):
@@ -78,18 +76,19 @@ class FilterTests(unittest.TestCase):
 
     def test_empty_clue_does_not_return_the_bank(self):
         words = helper(['crane', 'slate'])
-        page = words.filter_page([], limit=100, answer_offset=0, guess_offset=0)
-        self.assertEqual(page['answers'], [])
-        self.assertEqual(page['guesses'], [])
+        page = words.filter_page([], limit=100, offset=0)
+        self.assertEqual(page['words'], [])
+        self.assertEqual(page['total'], 0)
         self.assertTrue(page['needs_clue'])
 
-    def test_pages_are_bounded_and_split_by_answer_set(self):
-        words = helper(['crane', 'crate', 'crank', 'slate'], answers={'crane', 'slate'})
-        page = words.filter_page([constraint('crane', green=(0,))], limit=1, answer_offset=0, guess_offset=1)
-        self.assertEqual(page['answers'], ['crane'])
-        self.assertEqual(page['answer_total'], 1)
-        self.assertEqual(page['guesses'], ['crate'])
-        self.assertEqual(page['guess_total'], 2)
+    def test_pages_are_one_alphabetical_list(self):
+        words = helper(['crane', 'crate', 'crank', 'slate'], answers={'crank', 'slate'})
+        page = words.filter_page([constraint('crane', green=(0,))], limit=3, offset=0)
+        self.assertEqual(page['words'], ['crane', 'crank', 'crate'])
+        self.assertEqual(page['total'], 3)
+        later = words.filter_page([constraint('crane', green=(0,))], limit=1, offset=1)
+        self.assertEqual(later['words'], ['crank'])
+        self.assertEqual(later['offset'], 1)
 
     def test_scored_guess_still_contains_its_answer(self):
         bank = ['apple', 'puppy', 'eerie', 'elder', 'books', 'boost', 'alert', 'alter']
@@ -138,11 +137,11 @@ class ValidationTests(unittest.TestCase):
                 parse_constraints(body)
 
     def test_page_bounds(self):
-        self.assertEqual(parse_page({'constraints': []}), (100, 0, 0))
+        self.assertEqual(parse_page({'constraints': []}), (100, 0))
         with self.assertRaises(ValueError):
             parse_page({'constraints': [], 'limit': 0})
         with self.assertRaises(ValueError):
-            parse_page({'constraints': [], 'answer_offset': -1})
+            parse_page({'constraints': [], 'offset': -1})
 
 
 class BankTests(unittest.TestCase):

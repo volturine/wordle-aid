@@ -59,7 +59,7 @@ Full frontend build + staging into the worker: `worker/scripts/build_frontend.sh
 ## Endpoints
 
 - `GET /api/health` — healthcheck (CI verifies prod after deploy)
-- `POST /api/filter/five_letter_words` — body `{"constraints": [{"guess": "crane", "correct_position": [0], "incorrect_position": [], "incorrect_letter": [1, 2, 3, 4]}]}` → one page of likely answers and one page of other accepted guesses
+- `POST /api/filter/five_letter_words` — body `{"constraints": [{"guess": "crane", "correct_position": [0], "incorrect_position": [], "incorrect_letter": [1, 2, 3, 4]}]}` → one page of matching words
 - `GET /api/word-definition/{word}` — D1 cache first, then RapidAPI (`RAPID_API_KEY` secret), then cached to D1
 
 The frontend calls `/api/...` same-origin; never introduce a separate API origin or CORS setup.

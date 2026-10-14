@@ -3,7 +3,7 @@
 Wordle Aid ships two lists:
 
 - **Accepted guesses** are the words a Wordle-style game can accept.
-- **Likely answers** are the smaller set shown first. Every likely answer is also an accepted guess.
+- **Likely answers** are a recorded subset of those guesses. Results show every matching accepted guess in one list.
 
 The previous SQLite dictionary is not part of either list. Unioning it back in would keep entries such as `aaron`, `abbie`, `abdom`, `accel`, and `accts`.
 

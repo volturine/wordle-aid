@@ -14,7 +14,7 @@ Visit [wordle-aid.com](https://wordle-aid.com).
 ## Features
 
 - **Smart filtering** — enter each guess with green/yellow/grey feedback and get
-  likely answers first, then other accepted guesses, including duplicate letters
+  one list of matching words, including duplicate letters
 - **Definitions** — look up any remaining candidate's definition on the spot
 - **PWA** — installable, offline-friendly shell; your game state lives in your browser
 - **No accounts, no tracking** — the server stores a static dictionary and a
@@ -33,7 +33,7 @@ One Cloudflare Worker does everything:
 
 Endpoints:
 
-- `POST /api/filter/five_letter_words` — guess constraints → likely answers and other accepted guesses
+- `POST /api/filter/five_letter_words` — guess constraints → one page of matching words
 - `GET /api/word-definition/{word}` — definition (D1 cache, then WordsAPI)
 - `GET /api/health` — healthcheck
 

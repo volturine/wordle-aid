@@ -96,15 +96,12 @@ class WordleHelper:
 
         return {word for word in candidates if matches(word)}
 
-    def filter_page(self, constraints: list[dict], limit: int, answer_offset: int, guess_offset: int) -> dict:
-        """Return one page of likely answers and one page of other accepted guesses."""
+    def filter_page(self, constraints: list[dict], limit: int, offset: int) -> dict:
+        """Return one page of every matching word."""
         page = {
-            'answers': [],
-            'guesses': [],
-            'answer_total': 0,
-            'guess_total': 0,
-            'answer_offset': answer_offset,
-            'guess_offset': guess_offset,
+            'words': [],
+            'total': 0,
+            'offset': offset,
             'limit': limit,
             'needs_clue': not constraints,
             'bank_version': self.version,
@@ -121,12 +118,9 @@ class WordleHelper:
                 incorrect_letter=tuple(constraint['incorrect_letter']),
             )
 
-        answer_words = sorted(word for word in filtered if word in self.answers)
-        guess_words = sorted(word for word in filtered if word not in self.answers)
-        page['answers'] = answer_words[answer_offset:answer_offset + limit]
-        page['guesses'] = guess_words[guess_offset:guess_offset + limit]
-        page['answer_total'] = len(answer_words)
-        page['guess_total'] = len(guess_words)
+        words = sorted(filtered)
+        page['words'] = words[offset:offset + limit]
+        page['total'] = len(words)
         return page
 
 
