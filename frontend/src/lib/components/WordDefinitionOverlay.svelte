@@ -11,15 +11,19 @@
 		selectedWord = '',
 		bubblePos = { top: 0, bottom: 0, left: 0, maxHeight: 320 },
 		onClose,
+		onReposition,
 		onUseWord,
 		position = 'bottom',
+		triggerEl = null,
 		useGuessReason = ''
 	}: {
 		selectedWord: string;
 		bubblePos: { top: number; bottom: number; left: number; maxHeight: number };
 		onClose: (restoreFocus?: boolean) => void;
+		onReposition?: () => void;
 		onUseWord?: (word: string) => void;
 		position: 'top' | 'bottom';
+		triggerEl?: HTMLButtonElement | null;
 		useGuessReason?: string;
 	} = $props();
 
@@ -80,7 +84,9 @@
 	$effect(() => {
 		if (!selectedWord || !bubbleEl) return;
 
-		bubbleEl.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+		bubbleEl.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({
+			preventScroll: true
+		});
 		const handleKeydown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
 				event.preventDefault();
@@ -88,17 +94,25 @@
 			}
 		};
 		const handlePointerDown = (event: PointerEvent) => {
-			if (bubbleEl && !bubbleEl.contains(event.target as Node)) onClose(false);
+			const target = event.target as Node | null;
+			if (!target) return;
+			if (bubbleEl?.contains(target) || triggerEl?.contains(target)) return;
+			onClose(false);
 		};
-		const handleScroll = () => onClose();
+		const handleViewportChange = () => {
+			if (onReposition) onReposition();
+			else onClose(false);
+		};
 		const removeKeydown = on(document, 'keydown', handleKeydown);
 		const removePointerDown = on(document, 'pointerdown', handlePointerDown);
-		const removeScroll = on(window, 'scroll', handleScroll, { passive: true });
+		const removeScroll = on(window, 'scroll', handleViewportChange, { passive: true });
+		const removeResize = on(window, 'resize', handleViewportChange, { passive: true });
 
 		return () => {
 			removeKeydown();
 			removePointerDown();
 			removeScroll();
+			removeResize();
 		};
 	});
 </script>
@@ -173,6 +187,7 @@
 		position: relative;
 		max-height: inherit;
 		overflow: auto;
+		overscroll-behavior: contain;
 		padding: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-card);
