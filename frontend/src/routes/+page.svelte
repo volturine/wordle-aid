@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { flushSync, onMount } from 'svelte';
+	import { on } from 'svelte/events';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { FilePenLine, Grid2x2Check, X } from '@lucide/svelte';
@@ -7,7 +8,13 @@
 	import WordDefinitionOverlay from '#lib/components/WordDefinitionOverlay.svelte';
 	import { CharacterState } from '#lib/interfaces.js';
 	import { FILTER_PAGE_SIZE, filterWords } from '#lib/api.js';
-	import { backspaceAt, placeGuess, placementBlockReason } from '#lib/guessBoard.js';
+	import {
+		applyTileInput,
+		backspaceAt,
+		placeGuess,
+		placementBlockReason,
+		tileInputValue
+	} from '#lib/guessBoard.js';
 	import { paginationItems } from '#lib/pagination.js';
 	import { readStorage, removeStorage, writeStorage } from '#lib/storage.js';
 	import type { WordRow } from '#lib/types.js';
@@ -43,12 +50,48 @@
 	let selectedWord = $state('');
 	let bubblePos = $state({ top: 0, bottom: 0, left: 0, maxHeight: 320 });
 	let overlayPosition = $state<'top' | 'bottom'>('bottom');
-	let wordTrigger: HTMLButtonElement | null = null;
+	let wordTrigger = $state<HTMLButtonElement | null>(null);
+	let resultsSection = $state<HTMLElement | null>(null);
 	let activeSearch: AbortController | null = null;
 	const useGuessReason = $derived(placementBlockReason(wordRows));
 	const currentPage = $derived(Math.floor(offset / FILTER_PAGE_SIZE) + 1);
 	const totalPages = $derived(total > 0 ? Math.ceil(total / FILTER_PAGE_SIZE) : 0);
 	const pageItems = $derived(paginationItems(currentPage, totalPages));
+
+	function positionCaretAtEnd(input: HTMLInputElement) {
+		const length = input.value.length;
+		try {
+			input.setSelectionRange(length, length);
+		} catch {
+			// Ignore inputs that do not support selection ranges.
+		}
+	}
+
+	function keepFocusedRowVisible() {
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement)) return;
+		const rowEl = active.closest<HTMLElement>('.word-row');
+		if (!rowEl) return;
+		const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+		const rect = rowEl.getBoundingClientRect();
+		if (rect.bottom > viewportHeight - 16 || rect.top < 16) {
+			rowEl.scrollIntoView({
+				block: 'center',
+				behavior: prefersReducedMotion.current ? 'auto' : 'smooth'
+			});
+		}
+	}
+
+	function focusTileInput(rowIndex: number, columnIndex: number) {
+		flushSync();
+		const target = document.querySelector<HTMLInputElement>(
+			`input[data-row="${rowIndex}"][data-char="${columnIndex}"]`
+		);
+		if (!target) return;
+		target.value = tileInputValue(wordRows[rowIndex]?.[columnIndex]?.value ?? '');
+		target.focus();
+		positionCaretAtEnd(target);
+	}
 
 	onMount(() => {
 		removeStorage(RESULT_KEY);
@@ -73,6 +116,10 @@
 		} catch {
 			removeStorage(WORD_ROWS_KEY);
 		}
+
+		const viewport = window.visualViewport;
+		if (!viewport) return;
+		return on(viewport, 'resize', keepFocusedRowVisible);
 	});
 
 	$effect(() => {
@@ -94,32 +141,51 @@
 
 	function closeOverlay(restoreFocus = true) {
 		selectedWord = '';
-		if (restoreFocus) requestAnimationFrame(() => wordTrigger?.focus());
+		if (restoreFocus) {
+			const trigger = wordTrigger;
+			requestAnimationFrame(() => trigger?.focus({ preventScroll: true }));
+		}
 	}
 
 	function handleUseWord(word: string) {
 		const placed = placeGuess(wordRows, word);
 		if (!placed.placed) return;
-		inputMode = 'writing';
-		wordRows = placed.rows;
-		invalidateSearch();
-		requestAnimationFrame(() =>
-			document
-				.querySelector<HTMLInputElement>(`input[data-row="${placed.focusRow}"][data-char="0"]`)
-				?.focus()
+		flushSync(() => {
+			inputMode = 'feedback';
+			wordRows = placed.rows;
+			invalidateSearch();
+		});
+		const firstTile = document.querySelector<HTMLButtonElement>(
+			`button[data-row="${placed.focusRow}"][data-char="0"]`
 		);
+		firstTile?.focus({ preventScroll: true });
+		firstTile
+			?.closest<HTMLElement>('.word-row')
+			?.scrollIntoView({
+				block: 'center',
+				behavior: prefersReducedMotion.current ? 'auto' : 'smooth'
+			});
+	}
+
+	function handleTileFocus(event: FocusEvent) {
+		const input = event.currentTarget as HTMLInputElement;
+		positionCaretAtEnd(input);
+		requestAnimationFrame(() => {
+			positionCaretAtEnd(input);
+			keepFocusedRowVisible();
+		});
 	}
 
 	function handleCharInput(rowIndex: number, columnIndex: number, event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const rawValue = input.value;
-		const value = rawValue.match(/[a-z]/i)?.[0]?.toLowerCase() ?? '';
-		input.value = value;
-		wordRows[rowIndex][columnIndex].value = value;
+		const inputData = event instanceof InputEvent ? event.data : null;
+		const outcome = applyTileInput(wordRows, rowIndex, columnIndex, input.value, inputData);
+		input.value = tileInputValue(wordRows[rowIndex][columnIndex].value);
+		positionCaretAtEnd(input);
 		invalidateSearch();
 		error = '';
 
-		if (rawValue && !/^[a-z]$/i.test(rawValue)) {
+		if (outcome.invalid) {
 			invalidCell = { row: rowIndex, column: columnIndex };
 			validationError = 'Use one letter from A to Z in each square.';
 		} else if (invalidCell?.row === rowIndex && invalidCell.column === columnIndex) {
@@ -127,12 +193,8 @@
 			validationError = '';
 		}
 
-		if (value && columnIndex < 4) {
-			document
-				.querySelector<HTMLInputElement>(
-					`input[data-row="${rowIndex}"][data-char="${columnIndex + 1}"]`
-				)
-				?.focus();
+		if (outcome.focusColumn !== columnIndex) {
+			focusTileInput(rowIndex, outcome.focusColumn);
 		}
 	}
 
@@ -146,64 +208,117 @@
 	}
 
 	function handleCharKeydown(rowIndex: number, columnIndex: number, event: KeyboardEvent) {
-		if (inputMode === 'feedback' && (event.key === 'Enter' || event.key === ' ')) {
+		if (event.key === 'ArrowLeft' && columnIndex > 0) {
 			event.preventDefault();
-			cycleFeedback(rowIndex, columnIndex);
+			focusTileInput(rowIndex, columnIndex - 1);
 			return;
 		}
-		if (event.key === 'Enter') event.preventDefault();
+		if (event.key === 'ArrowRight' && columnIndex < 4) {
+			event.preventDefault();
+			focusTileInput(rowIndex, columnIndex + 1);
+			return;
+		}
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			if (columnIndex < 4) {
+				focusTileInput(rowIndex, columnIndex + 1);
+			} else if (wordRows[rowIndex].some((cell) => Boolean(cell.value))) {
+				const firstFilled = Math.max(
+					0,
+					wordRows[rowIndex].findIndex((cell) => Boolean(cell.value))
+				);
+				flushSync(() => {
+					inputMode = 'feedback';
+				});
+				document
+					.querySelector<HTMLButtonElement>(
+						`button[data-row="${rowIndex}"][data-char="${firstFilled}"]`
+					)
+					?.focus({ preventScroll: true });
+			}
+			return;
+		}
 		if (event.key === 'Backspace') {
+			event.preventDefault();
+			const cell = wordRows[rowIndex][columnIndex];
+			if (cell.value) {
+				cell.value = '';
+				cell.state = CharacterState.INCORRECT;
+				const input = event.currentTarget as HTMLInputElement;
+				input.value = tileInputValue('');
+				positionCaretAtEnd(input);
+				invalidateSearch();
+				return;
+			}
 			const applied = backspaceAt(wordRows[rowIndex], columnIndex);
 			if (!applied.changed) return;
 			invalidateSearch();
-			document
-				.querySelector<HTMLInputElement>(`input[data-row="${rowIndex}"][data-char="${applied.focus}"]`)
-				?.focus();
-			event.preventDefault();
+			focusTileInput(rowIndex, applied.focus);
 		}
 	}
 
 	function addRow() {
 		if (wordRows.length >= 6) return;
-		inputMode = 'writing';
-		wordRows = [...wordRows, initialRow()];
-		invalidateSearch();
-		requestAnimationFrame(() => {
-			const index = wordRows.length - 1;
-			document
-				.querySelector<HTMLInputElement>(`input[data-row="${index}"][data-char="0"]`)
-				?.focus();
+		let nextIndex = 0;
+		flushSync(() => {
+			inputMode = 'writing';
+			wordRows = [...wordRows, initialRow()];
+			nextIndex = wordRows.length - 1;
+			invalidateSearch();
 		});
+		const input = document.querySelector<HTMLInputElement>(
+			`input[data-row="${nextIndex}"][data-char="0"]`
+		);
+		if (input) {
+			input.focus();
+			positionCaretAtEnd(input);
+			input
+				.closest<HTMLElement>('.word-row')
+				?.scrollIntoView({
+					block: 'nearest',
+					behavior: prefersReducedMotion.current ? 'auto' : 'smooth'
+				});
+		}
 	}
 
 	function removeRow(rowIndex: number) {
 		if (wordRows.length <= 1) return;
-		wordRows = wordRows.filter((_, index) => index !== rowIndex);
-		invalidCell = null;
-		validationError = '';
-		invalidateSearch();
-		requestAnimationFrame(() => {
-			const nextRowIndex = Math.min(rowIndex, wordRows.length - 1);
-			document
-				.querySelector<HTMLInputElement>(`input[data-row="${nextRowIndex}"][data-char="0"]`)
-				?.focus();
+		const nextRowIndex = Math.min(rowIndex, wordRows.length - 2);
+		flushSync(() => {
+			wordRows = wordRows.filter((_, index) => index !== rowIndex);
+			invalidCell = null;
+			validationError = '';
+			invalidateSearch();
 		});
+		if (inputMode === 'feedback') {
+			document
+				.querySelector<HTMLButtonElement>(`button[data-row="${nextRowIndex}"][data-char="0"]`)
+				?.focus({ preventScroll: true });
+		} else {
+			focusTileInput(nextRowIndex, 0);
+		}
 	}
 
 	function reset() {
-		invalidateSearch();
-		inputMode = 'writing';
-		wordRows = [initialRow()];
-		searchCompleted = false;
-		error = '';
-		validationError = '';
-		invalidCell = null;
-		selectedWord = '';
+		flushSync(() => {
+			invalidateSearch();
+			inputMode = 'writing';
+			wordRows = [initialRow()];
+			searchCompleted = false;
+			error = '';
+			validationError = '';
+			invalidCell = null;
+			selectedWord = '';
+		});
 	}
 
-	function showOverlay(word: string, event: MouseEvent) {
-		wordTrigger = event.currentTarget as HTMLButtonElement;
+	function updateOverlayPosition() {
+		if (!wordTrigger || !selectedWord) return;
 		const rect = wordTrigger.getBoundingClientRect();
+		if (rect.bottom < 0 || rect.top > window.innerHeight) {
+			closeOverlay(false);
+			return;
+		}
 		const belowSpace = window.innerHeight - rect.bottom - 24;
 		const aboveSpace = rect.top - 24;
 		overlayPosition = belowSpace >= aboveSpace ? 'bottom' : 'top';
@@ -217,9 +332,19 @@
 					rect.left + rect.width / 2
 				)
 			),
-			maxHeight: Math.max(0, Math.min(360, overlayPosition === 'bottom' ? belowSpace : aboveSpace))
+			maxHeight: Math.max(120, Math.min(360, overlayPosition === 'bottom' ? belowSpace : aboveSpace))
 		};
+	}
+
+	function showOverlay(word: string, event: MouseEvent) {
+		const trigger = event.currentTarget as HTMLButtonElement;
+		if (selectedWord === word && wordTrigger === trigger) {
+			closeOverlay(false);
+			return;
+		}
+		wordTrigger = trigger;
 		selectedWord = word;
+		updateOverlayPosition();
 	}
 
 	async function handleSearch(event: SubmitEvent) {
@@ -233,11 +358,12 @@
 			);
 			invalidCell = { row: invalidRow, column: invalidColumn };
 			validationError = 'Use one letter from A to Z in each square.';
-			document
-				.querySelector<HTMLInputElement>(
-					`input[data-row="${invalidRow}"][data-char="${invalidColumn}"]`
-				)
-				?.focus();
+			if (inputMode !== 'writing') {
+				flushSync(() => {
+					inputMode = 'writing';
+				});
+			}
+			focusTileInput(invalidRow, invalidColumn);
 			return;
 		}
 
@@ -263,7 +389,10 @@
 		} catch (cause) {
 			if (controller.signal.aborted) return;
 			console.error('Filter error:', cause);
-			error = cause instanceof Error ? cause.message : 'We couldn’t reach the word list. Check your connection and try again.';
+			error =
+				cause instanceof Error
+					? cause.message
+					: 'We couldn’t reach the word list. Check your connection and try again.';
 		} finally {
 			if (activeSearch === controller) {
 				activeSearch = null;
@@ -274,11 +403,16 @@
 
 	async function changePage(nextOffset: number) {
 		if (nextOffset === offset) return;
+		selectedWord = '';
 		const controller = new AbortController();
 		activeSearch?.abort();
 		activeSearch = controller;
 		loading = true;
 		error = '';
+		resultsSection?.scrollIntoView({
+			block: 'start',
+			behavior: prefersReducedMotion.current ? 'auto' : 'smooth'
+		});
 		try {
 			const page = await filterWords(wordRows, {
 				offset: nextOffset,
@@ -291,7 +425,10 @@
 			bankVersion = page.bank_version;
 		} catch (cause) {
 			if (controller.signal.aborted) return;
-			error = cause instanceof Error ? cause.message : 'We couldn’t reach the word list. Check your connection and try again.';
+			error =
+				cause instanceof Error
+					? cause.message
+					: 'We couldn’t reach the word list. Check your connection and try again.';
 		} finally {
 			if (activeSearch === controller) {
 				activeSearch = null;
@@ -365,7 +502,7 @@
 			<p class="mode-help" id="mode-help">
 				{inputMode === 'writing'
 					? 'Type one letter in each square. Your guesses are saved on this device.'
-					: 'Click a letter, or focus it and press Enter or Space, to cycle gray, yellow, and green.'}
+					: 'Tap or click a letter, or press Enter or Space, to cycle gray, yellow, and green.'}
 			</p>
 
 			<div class="word-grid" role="group" aria-label="Your guesses">
@@ -373,27 +510,45 @@
 					<div class="word-row" role="group" aria-label={`Guess ${rowIndex + 1}`}>
 						<div class="word-row-content">
 							{#each row as cell, columnIndex (columnIndex)}
-								<input
-									type="text"
-									maxlength="1"
-									inputmode="text"
-									spellcheck="false"
-									autocomplete="off"
-									data-row={rowIndex}
-									data-char={columnIndex}
-									aria-label={`Guess ${rowIndex + 1}, letter ${columnIndex + 1}, ${stateLabels[cell.state]}`}
-									aria-describedby={invalidCell?.row === rowIndex &&
-									invalidCell.column === columnIndex
-										? `mode-help guess-error-${rowIndex}`
-										: 'mode-help'}
-									aria-invalid={invalidCell?.row === rowIndex && invalidCell.column === columnIndex}
-									value={cell.value}
-									class={cell.value ? cell.state : 'empty'}
-									onfocus={(event) => (event.currentTarget as HTMLInputElement).select()}
-									oninput={(event) => handleCharInput(rowIndex, columnIndex, event)}
-									onkeydown={(event) => handleCharKeydown(rowIndex, columnIndex, event)}
-									onclick={() => inputMode === 'feedback' && cycleFeedback(rowIndex, columnIndex)}
-								/>
+								{#if inputMode === 'writing'}
+									<input
+										type="text"
+										inputmode="text"
+										enterkeyhint={columnIndex < 4 ? 'next' : 'done'}
+										autocapitalize="off"
+										autocorrect="off"
+										spellcheck="false"
+										autocomplete="off"
+										data-row={rowIndex}
+										data-char={columnIndex}
+										aria-label={`Guess ${rowIndex + 1}, letter ${columnIndex + 1}${cell.value ? `, ${cell.value.toUpperCase()}` : ''}, ${stateLabels[cell.state]}`}
+										aria-describedby={invalidCell?.row === rowIndex &&
+										invalidCell.column === columnIndex
+											? `mode-help guess-error-${rowIndex}`
+											: 'mode-help'}
+										aria-invalid={invalidCell?.row === rowIndex &&
+											invalidCell.column === columnIndex}
+										value={tileInputValue(cell.value)}
+										class={`word-tile ${cell.value ? cell.state : 'empty'}`}
+										onfocus={handleTileFocus}
+										onclick={(event) =>
+											positionCaretAtEnd(event.currentTarget as HTMLInputElement)}
+										oninput={(event) => handleCharInput(rowIndex, columnIndex, event)}
+										onkeydown={(event) => handleCharKeydown(rowIndex, columnIndex, event)}
+									/>
+								{:else}
+									<button
+										type="button"
+										data-row={rowIndex}
+										data-char={columnIndex}
+										aria-label={`Guess ${rowIndex + 1}, letter ${columnIndex + 1}${cell.value ? `, ${cell.value.toUpperCase()}` : ''}, ${stateLabels[cell.state]}`}
+										aria-describedby="mode-help"
+										class={`word-tile ${cell.value ? cell.state : 'empty'}`}
+										onclick={() => cycleFeedback(rowIndex, columnIndex)}
+									>
+										{cell.value}
+									</button>
+								{/if}
 							{/each}
 						</div>
 						{#if wordRows.length > 1}
@@ -437,7 +592,7 @@
 			</div>
 		</form>
 
-		{#if loading}
+		{#if loading && !searchCompleted}
 			<p class="status-message" role="status" aria-live="polite">Finding possible answers…</p>
 		{/if}
 		{#if error}
@@ -454,6 +609,7 @@
 		{:else if searchCompleted}
 			<section
 				class="results"
+				bind:this={resultsSection}
 				aria-busy={loading}
 				in:fade={{ duration: prefersReducedMotion.current ? 0 : 160 }}
 			>
@@ -503,7 +659,9 @@
 			{selectedWord}
 			{bubblePos}
 			position={overlayPosition}
+			triggerEl={wordTrigger}
 			onClose={closeOverlay}
+			onReposition={updateOverlayPosition}
 			onUseWord={handleUseWord}
 			useGuessReason={useGuessReason}
 		/>
@@ -674,6 +832,7 @@
 		justify-content: center;
 		align-items: center;
 		gap: var(--space-2);
+		scroll-margin-block: var(--space-6);
 	}
 
 	.word-row-content {
@@ -684,7 +843,10 @@
 		min-width: 0;
 	}
 
-	.word-row input {
+	.word-tile {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		width: 100%;
 		min-width: 0;
 		min-height: 44px;
@@ -697,32 +859,52 @@
 		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 1.5rem;
 		font-weight: 700;
+		line-height: 1;
 		text-align: center;
 		text-transform: uppercase;
 		caret-color: transparent;
+		touch-action: manipulation;
 		transition:
 			background-color 160ms ease,
-			border-color 160ms ease;
+			border-color 160ms ease,
+			transform 150ms ease;
 	}
 
-	.word-row input.empty:focus {
+	button.word-tile {
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
+	.word-tile::selection {
+		background: transparent;
+		color: inherit;
+	}
+
+	.word-tile.empty:focus,
+	.word-tile.empty:hover:not(:disabled) {
 		border-color: var(--line-strong);
 	}
 
-	.word-row input.incorrect,
-	.word-row input.wrong-position,
-	.word-row input.correct-position {
+	.word-tile.incorrect,
+	.word-tile.wrong-position,
+	.word-tile.correct-position {
 		border-color: transparent;
 		color: var(--tile-ink);
 	}
 
-	.word-row input.incorrect {
+	.word-tile.incorrect:hover:not(:disabled),
+	.word-tile.wrong-position:hover:not(:disabled),
+	.word-tile.correct-position:hover:not(:disabled) {
+		border-color: var(--line-strong);
+	}
+
+	.word-tile.incorrect {
 		background: var(--gray);
 	}
-	.word-row input.wrong-position {
+	.word-tile.wrong-position {
 		background: var(--yellow);
 	}
-	.word-row input.correct-position {
+	.word-tile.correct-position {
 		background: var(--tile-green);
 	}
 
@@ -814,6 +996,7 @@
 		margin-top: var(--space-6);
 		padding-top: var(--space-6);
 		border-top: 1px solid var(--line);
+		scroll-margin-top: var(--space-4);
 	}
 
 	.empty-state h2 {
@@ -822,8 +1005,7 @@
 	}
 
 	.empty-state p,
-	.results-count,
-	.results-note {
+	.results-count {
 		margin: 0;
 		color: var(--muted);
 		line-height: 1.5;
@@ -911,7 +1093,7 @@
 			box-shadow: none;
 		}
 		.top-bar {
-			margin-bottom: var(--space-3);
+			margin-bottom: var(--space-2);
 		}
 		h1 {
 			font-size: 1.75rem;
@@ -919,8 +1101,8 @@
 		.legend {
 			grid-template-columns: 1fr;
 			gap: var(--space-1);
-			margin: var(--space-4) 0 var(--space-6);
-			padding: var(--space-3) var(--space-4);
+			margin: var(--space-3) 0 var(--space-4);
+			padding: var(--space-2) var(--space-3);
 		}
 		.legend p {
 			grid-template-columns: 12px 4rem minmax(0, 1fr);
@@ -931,6 +1113,10 @@
 		.mode-switch {
 			max-width: none;
 		}
+		.mode-help {
+			min-height: 0;
+			margin: var(--space-2) 0 var(--space-3);
+		}
 		.word-row {
 			grid-template-columns: 44px minmax(0, 1fr) 44px;
 		}
@@ -938,8 +1124,11 @@
 		.word-row-content {
 			gap: var(--space-1);
 		}
-		.word-row input {
+		.word-tile {
 			font-size: 1.25rem;
+		}
+		.form-actions {
+			margin-top: var(--space-4);
 		}
 	}
 
@@ -954,7 +1143,7 @@
 			grid-template-columns: repeat(5, 44px);
 		}
 
-		.word-row input {
+		.word-tile {
 			width: 44px;
 			min-width: 44px;
 			height: 44px;
