@@ -58,6 +58,26 @@ test('typing a new letter into a filled square overwrites the existing letter an
 	assert.equal(result.focusColumn, 2);
 });
 
+test('re-typing the same letter into a filled square preserves its marked color', () => {
+	const rows = [row('crane', ['correct-position', 'wrong-position'])];
+	const result = applyTileInput(rows, 0, 1, 'rr', 'r');
+	assert.equal(result.kind, 'typed');
+	assert.equal(rows[0][1].value, 'r');
+	assert.equal(rows[0][1].state, 'wrong-position');
+	assert.equal(result.focusColumn, 2);
+});
+
+test('non-letter input on a filled square keeps the existing letter and color state', () => {
+	const rows = [row('crane', ['wrong-position'])];
+	const result = applyTileInput(rows, 0, 0, 'c1', '1');
+	assert.equal(result.kind, 'invalid');
+	assert.equal(result.invalid, true);
+	assert.equal(result.value, 'c');
+	assert.equal(result.focusColumn, 0);
+	assert.equal(rows[0][0].value, 'c');
+	assert.equal(rows[0][0].state, 'wrong-position');
+});
+
 test('typing a letter that matches an earlier green column inherits correct-position', () => {
 	const rows = [row('crane', ['correct-position']), row('_____')];
 	const result = applyTileInput(rows, 1, 0, `${EMPTY_TILE_SENTINEL}c`, 'c');

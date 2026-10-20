@@ -150,14 +150,14 @@ export function applyTileInput<T extends GuessCell>(
 	}
 
 	if (!/^[a-z]$/i.test(typed)) {
-		cell.value = '';
-		cell.state = 'incorrect' as T['state'];
-		return { kind: 'invalid', value: '', focusColumn: columnIndex, invalid: true };
+		return { kind: 'invalid', value: previousValue, focusColumn: columnIndex, invalid: true };
 	}
 
 	const value = typed.toLowerCase();
 	cell.value = value;
-	cell.state = inheritedCellState(rows, rowIndex, columnIndex, value);
+	if (value !== previousValue) {
+		cell.state = inheritedCellState(rows, rowIndex, columnIndex, value);
+	}
 	return {
 		kind: 'typed',
 		value,

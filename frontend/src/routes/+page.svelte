@@ -220,7 +220,7 @@
 		}
 		if (event.key === 'Enter') {
 			event.preventDefault();
-			if (columnIndex < 4 && !wordRows[rowIndex][columnIndex + 1]?.value) {
+			if (columnIndex < 4) {
 				focusTileInput(rowIndex, columnIndex + 1);
 			} else if (wordRows[rowIndex].some((cell) => Boolean(cell.value))) {
 				const firstFilled = Math.max(
@@ -294,7 +294,7 @@
 			document
 				.querySelector<HTMLButtonElement>(`button[data-row="${nextRowIndex}"][data-char="0"]`)
 				?.focus({ preventScroll: true });
-		} else if (wordRows[nextRowIndex]?.every((cell) => !cell.value)) {
+		} else {
 			focusTileInput(nextRowIndex, 0);
 		}
 	}
